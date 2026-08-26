@@ -1,0 +1,281 @@
+// Gradient Forms - Production PostgreSQL Prisma Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+enum FormStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum QuestionType {
+  SHORT_ANSWER
+  PARAGRAPH
+  MULTIPLE_CHOICE
+  CHECKBOXES
+  DROPDOWN
+  SCALE
+  RATING
+  DATE
+  TIME
+  FILE_UPLOAD
+  EMAIL
+  PHONE
+  NUMBER
+  URL
+  SECTION
+  HEADING
+  MATRIX
+  RANKING
+  SIGNATURE
+  CONSENT
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships WorkspaceMember[]
+  forms       Form[]
+  comments    Comment[]
+  notifications Notification[]
+
+  @@index([email])
+}
+
+model Workspace {
+  id        String    @id @default(uuid())
+  name      String
+  logo      String?
+  plan      String    @default("pro")
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  members      WorkspaceMember[]
+  forms        Form[]
+  integrations Integration[]
+  subscription Subscription?
+
+  @@index([name])
+}
+
+model WorkspaceMember {
+  id          String   @id @default(uuid())
+  workspaceId String
+  userId      String
+  role        Role     @default(EDITOR)
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+}
+
+model Form {
+  id           String     @id @default(uuid())
+  workspaceId  String
+  authorId     String
+  title        String
+  description  String?
+  status       FormStatus @default(DRAFT)
+  isPublished  Boolean    @default(false)
+  settingsJson Json
+  themeJson    Json
+  deletedAt    DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  workspace  Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  author     User          @relation(fields: [authorId], references: [id])
+  sections   FormSection[]
+  questions  Question[]
+  logicRules LogicRule[]
+  responses  FormResponse[]
+  versions   FormVersion[]
+  comments   Comment[]
+
+  @@index([workspaceId])
+  @@index([status])
+}
+
+model FormSection {
+  id          String   @id @default(uuid())
+  formId      String
+  title       String
+  description String?
+  orderIndex  Int
+
+  form      Form       @relation(fields: [formId], references: [id], onDelete: Cascade)
+  questions Question[]
+
+  @@index([formId, orderIndex])
+}
+
+model Question {
+  id             String       @id @default(uuid())
+  formId         String
+  sectionId      String?
+  type           QuestionType
+  title          String
+  description    String?
+  placeholder    String?
+  helpText       String?
+  required       Boolean      @default(false)
+  points         Int?
+  correctAnswer  String?
+  scaleMin       Int?         @default(1)
+  scaleMax       Int?         @default(10)
+  scaleMinLabel  String?
+  scaleMaxLabel  String?
+  ratingMax      Int?         @default(5)
+  validationJson Json?
+  orderIndex     Int
+
+  form    Form            @relation(fields: [formId], references: [id], onDelete: Cascade)
+  section FormSection?    @relation(fields: [sectionId], references: [id])
+  options QuestionOption[]
+  answers ResponseAnswer[]
+
+  @@index([formId, orderIndex])
+}
+
+model QuestionOption {
+  id         String   @id @default(uuid())
+  questionId String
+  label      String
+  score      Int?
+  isCorrect  Boolean  @default(false)
+  orderIndex Int
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId, orderIndex])
+}
+
+model LogicRule {
+  id               String @id @default(uuid())
+  formId           String
+  sourceQuestionId String
+  operator         String
+  value            String
+  action           String
+  targetQuestionId String
+
+  form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@index([formId])
+}
+
+model FormResponse {
+  id               String   @id @default(uuid())
+  formId           String
+  respondentEmail  String?
+  respondentName   String?
+  score            Int?
+  maxScore         Int?
+  timeSpentSeconds Int
+  submittedAt      DateTime @default(now())
+
+  form    Form             @relation(fields: [formId], references: [id], onDelete: Cascade)
+  answers ResponseAnswer[]
+
+  @@index([formId, submittedAt])
+}
+
+model ResponseAnswer {
+  id         String @id @default(uuid())
+  responseId String
+  questionId String
+  valueJson  Json
+
+  response FormResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  question Question     @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([responseId])
+  @@index([questionId])
+}
+
+model Comment {
+  id         String   @id @default(uuid())
+  formId     String
+  questionId String
+  authorId   String
+  text       String
+  resolved   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  form   Form @relation(fields: [formId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id])
+
+  @@index([formId, questionId])
+}
+
+model FormVersion {
+  id                 String   @id @default(uuid())
+  formId             String
+  versionNumber      Int
+  authorName         String
+  changesDescription String
+  savedAt            DateTime @default(now())
+
+  form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@index([formId, versionNumber])
+}
+
+model Integration {
+  id          String   @id @default(uuid())
+  workspaceId String
+  type        String
+  configJson  Json
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, type])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+}
+
+model Subscription {
+  id               String   @id @default(uuid())
+  workspaceId      String   @unique
+  plan             String   @default("pro")
+  status           String   @default("active")
+  stripeCustomerId String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+}

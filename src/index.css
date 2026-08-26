@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-primary: #0B0F14;
+    --bg-secondary: #121820;
+    --surface: #1A2332;
+    --border: #2A3647;
+    --accent-primary: #2563EB;
+    --accent-secondary: #1D4ED8;
+    --accent-cyan: #38BDF8;
+    --success: #3B82F6;
+    --warning: #C08200;
+    --error: #AD0303;
+    --muted: #84A1C0;
+    --disabled: #A5B4C6;
+  }
+
+  body {
+    background-color: var(--bg-primary);
+    color: #F1F5F9;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+
+  h1, h2, h3, h4, .font-heading {
+    font-family: 'Alegreya Sans', sans-serif;
+  }
+
+  .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0B0F14;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2A3647;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #2563EB;
+}
+
+/* Neo-Tech Surface Panels */
+.surface-panel {
+  background-color: #1A2332;
+  border: 1px solid #2A3647;
+}
+
+.surface-panel-hover {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.surface-panel-hover:hover {
+  background-color: #222C3D;
+  border-color: #2563EB;
+}
+
+/* Subtle Grid overlay background */
+.bg-grid-neo {
+  background-size: 40px 40px;
+  background-image: 
+    linear-gradient(to right, rgba(42, 54, 71, 0.2) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(42, 54, 71, 0.2) 1px, transparent 1px);
+}
