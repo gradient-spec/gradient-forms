@@ -641,24 +641,13 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         <div className="flex items-center gap-2">
           <input
             type="text"
-            value={question.title}
+            value={question.title ?? ''}
             onFocus={(e) => {
               if (ALL_DEFAULT_TITLES.has((question.title || '').trim())) {
                 e.target.select();
               }
             }}
-            onChange={(e) => {
-              const val = e.target.value;
-              const currentTrim = (question.title || '').trim();
-              if (ALL_DEFAULT_TITLES.has(currentTrim) && val.includes(question.title)) {
-                const stripped = val.replace(question.title, '').trimStart();
-                if (stripped) {
-                  onUpdate({ title: stripped });
-                  return;
-                }
-              }
-              onUpdate({ title: val });
-            }}
+            onChange={(e) => onUpdate({ title: e.target.value })}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();

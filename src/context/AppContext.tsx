@@ -113,11 +113,12 @@ export const ensureFormDefaults = (form: Form): Form => {
 
   return {
     ...form,
-    title: form.title || 'Untitled Form',
-    description: form.description || '',
+    title: form.title !== undefined ? form.title : 'Untitled Form',
+    description: form.description !== undefined ? form.description : '',
     sections,
     questions: (form.questions || []).map(q => ({
       ...q,
+      title: q.title !== undefined ? q.title : '',
       sectionId: (q.sectionId && sections.some(s => s.id === q.sectionId)) ? q.sectionId : defaultSectionId,
       options: q.options || [],
       validation: q.validation || (q.required !== undefined ? { required: q.required } : undefined)

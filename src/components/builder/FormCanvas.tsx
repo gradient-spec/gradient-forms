@@ -179,44 +179,21 @@ export const FormCanvas: React.FC<FormCanvasProps> = ({
 
         <input
           type="text"
-          value={form.title}
+          value={form.title ?? ''}
           onFocus={(e) => {
-            if (form.title === 'Untitled Form' || form.title.startsWith('Untitled Form')) {
+            if (form.title === 'Untitled Form') {
               e.target.select();
             }
           }}
-          onChange={(e) => {
-            const val = e.target.value;
-            if (form.title === 'Untitled Form' && val.includes('Untitled Form')) {
-              const stripped = val.replace('Untitled Form', '').trimStart();
-              if (stripped) {
-                onUpdateForm({ title: stripped });
-                return;
-              }
-            }
-            onUpdateForm({ title: val });
-          }}
+          onChange={(e) => onUpdateForm({ title: e.target.value })}
           placeholder="Form Title..."
           className="w-full bg-transparent text-2xl font-bold font-heading text-white border-b border-transparent focus:border-[#2563EB] focus:outline-none pb-1 transition-colors"
         />
 
         <textarea
           rows={2}
-          value={form.description === 'Add a description to guide respondents...' ? '' : form.description}
-          onFocus={() => {
-            if (form.description === 'Add a description to guide respondents...' || form.description === 'No description added.') {
-              onUpdateForm({ description: '' });
-            }
-          }}
-          onChange={(e) => {
-            const val = e.target.value;
-            if (form.description === 'Add a description to guide respondents...' && val.includes('Add a description to guide respondents...')) {
-              const stripped = val.replace('Add a description to guide respondents...', '').trimStart();
-              onUpdateForm({ description: stripped });
-            } else {
-              onUpdateForm({ description: val });
-            }
-          }}
+          value={form.description ?? ''}
+          onChange={(e) => onUpdateForm({ description: e.target.value })}
           placeholder="Add a description to guide respondents..."
           className="w-full bg-transparent text-xs text-slate-300 placeholder-slate-500 border-b border-transparent focus:border-[#2A3647] focus:outline-none resize-none"
         />
