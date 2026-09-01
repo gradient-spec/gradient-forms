@@ -1,7 +1,11 @@
 import React from 'react';
-import { CheckCircle2, ArrowRight, Table } from 'lucide-react';
+import { CheckCircle2, Table } from 'lucide-react';
 
-export const GoogleSheetsSyncCard: React.FC = () => {
+interface GoogleSheetsSyncCardProps {
+  syncedCount?: number;
+}
+
+export const GoogleSheetsSyncCard: React.FC<GoogleSheetsSyncCardProps> = ({ syncedCount = 0 }) => {
   return (
     <div className="p-6 rounded-2xl bg-[#1A2332] border border-[#2A3647] hover:border-[#10B981]/60 transition-all duration-300 shadow-neo relative overflow-hidden flex flex-col justify-between min-h-[190px] group">
       {/* Subtle Top Ambient Emerald Glow */}
@@ -21,10 +25,10 @@ export const GoogleSheetsSyncCard: React.FC = () => {
       <div className="grid grid-cols-12 items-center gap-2 my-2 relative z-10">
         <div className="col-span-7 space-y-0.5">
           <div className="text-3xl font-extrabold font-mono text-[#10B981] tracking-tight">
-            100%
+            {syncedCount > 0 ? `${syncedCount}` : 'Live'}
           </div>
           <div className="text-xs font-mono text-slate-300 font-semibold">
-            Synced
+            {syncedCount === 1 ? '1 Row Synced' : syncedCount > 1 ? `${syncedCount} Rows Synced` : 'Pipeline Ready'}
           </div>
         </div>
 
@@ -54,9 +58,11 @@ export const GoogleSheetsSyncCard: React.FC = () => {
       <div className="flex items-center justify-between pt-3 border-t border-[#2A3647]/60 text-xs font-mono relative z-10">
         <span className="px-2 py-0.5 rounded bg-[#10B981]/15 border border-[#10B981]/30 text-[#10B981] font-bold flex items-center gap-1 text-[11px]">
           <CheckCircle2 className="w-3 h-3" />
-          ✓ All good
+          ✓ Live Sync
         </span>
-        <span className="text-slate-400 text-[11px]">Last sync: just now</span>
+        <span className="text-slate-400 text-[11px]">
+          {syncedCount > 0 ? `${syncedCount} records synced` : 'Sync ready'}
+        </span>
       </div>
     </div>
   );

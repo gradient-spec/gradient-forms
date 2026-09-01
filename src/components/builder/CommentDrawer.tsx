@@ -33,7 +33,7 @@ export const CommentDrawer: React.FC<CommentDrawerProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[100] flex justify-end bg-black/60 backdrop-blur-sm">
       <div className="w-full max-w-sm h-full glass-panel border-l border-white/10 p-6 flex flex-col justify-between overflow-hidden animate-slide-left">
         <div>
           <div className="flex items-center justify-between border-b border-white/10 pb-4">

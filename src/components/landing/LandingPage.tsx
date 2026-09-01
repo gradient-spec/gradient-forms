@@ -25,8 +25,7 @@ export const LandingPage: React.FC = () => {
   const { setActiveView, createBlankForm, responses } = useApp();
 
   const handleStartBuilding = () => {
-    createBlankForm();
-    setActiveView('builder');
+    setActiveView('dashboard');
   };
 
   return (

@@ -21,10 +21,11 @@ export const FormPreviewModal: React.FC = () => {
       <div className="h-14 border-b border-white/10 glass-panel px-6 flex items-center justify-between z-30">
         <button
           onClick={() => setActiveView('builder')}
-          className="flex items-center gap-2 text-xs text-slate-300 hover:text-white transition-colors"
+          className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#1A2332] hover:bg-[#222C3D] border border-[#2A3647] hover:border-[#38BDF8]/60 text-slate-300 hover:text-white text-xs font-semibold shadow-xs transition-all duration-200 group cursor-pointer"
+          title="Back to Form Builder"
         >
-          <ArrowLeft className="w-4 h-4 text-violet-400" />
-          <span>Exit Preview</span>
+          <ArrowLeft className="w-4 h-4 text-[#38BDF8] group-hover:-translate-x-1 transition-transform" />
+          <span>Back to Builder</span>
         </button>
 
         {/* Device Mode Switcher */}

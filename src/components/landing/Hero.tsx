@@ -8,8 +8,7 @@ export const Hero: React.FC = () => {
   const { setActiveView, createBlankForm } = useApp();
 
   const handleCreateForm = () => {
-    createBlankForm();
-    setActiveView('builder');
+    setActiveView('dashboard');
   };
 
   const scrollToNextSection = () => {
@@ -54,11 +53,11 @@ export const Hero: React.FC = () => {
             </button>
 
             <button
-              onClick={() => setActiveView('templates')}
+              onClick={() => setActiveView('dashboard')}
               className="flex items-center gap-2 px-6 py-3.5 rounded-xl bg-[#1A2332] hover:bg-[#222C3D] border border-[#2A3647] text-slate-200 font-medium text-xs transition-colors"
             >
               <Play className="w-3 h-3 text-[#38BDF8]" />
-              <span>Explore the builder</span>
+              <span>View Forms Control Center</span>
             </button>
           </div>
 

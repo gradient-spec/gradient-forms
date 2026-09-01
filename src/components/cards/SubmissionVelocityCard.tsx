@@ -3,13 +3,17 @@ import { TrendingUp, BarChart3 } from 'lucide-react';
 
 interface SubmissionVelocityCardProps {
   count?: number;
+  totalSubmissions?: number;
   velocityPercent?: number;
 }
 
 export const SubmissionVelocityCard: React.FC<SubmissionVelocityCardProps> = ({
-  count = 142,
-  velocityPercent = 18
+  count,
+  totalSubmissions,
+  velocityPercent = 0
 }) => {
+  const actualCount = count !== undefined ? count : (totalSubmissions !== undefined ? totalSubmissions : 0);
+
   return (
     <div className="p-6 rounded-2xl bg-[#1A2332] border border-[#2A3647] hover:border-[#8B5CF6]/60 transition-all duration-300 shadow-neo relative overflow-hidden flex flex-col justify-between min-h-[190px] group">
       {/* Subtle Top Ambient Violet Glow */}
@@ -29,10 +33,10 @@ export const SubmissionVelocityCard: React.FC<SubmissionVelocityCardProps> = ({
       <div className="grid grid-cols-12 items-end gap-2 my-2 relative z-10">
         <div className="col-span-5 space-y-0.5">
           <div className="text-4xl font-extrabold font-mono text-white tracking-tight">
-            {count}
+            {actualCount}
           </div>
           <div className="text-xs font-mono text-[#8B5CF6] font-semibold">
-            Responses
+            {actualCount === 1 ? 'Response' : 'Responses'}
           </div>
         </div>
 
@@ -46,33 +50,51 @@ export const SubmissionVelocityCard: React.FC<SubmissionVelocityCardProps> = ({
               </linearGradient>
             </defs>
 
-            {/* Filled area under curve */}
-            <path
-              d="M 0 40 Q 30 35, 50 25 T 100 20 T 130 10 T 160 5 L 160 50 L 0 50 Z"
-              fill="url(#violet-spark-grad)"
-            />
+            {actualCount > 0 ? (
+              <>
+                {/* Filled area under curve */}
+                <path
+                  d="M 0 40 Q 30 35, 50 25 T 100 20 T 130 10 T 160 5 L 160 50 L 0 50 Z"
+                  fill="url(#violet-spark-grad)"
+                />
 
-            {/* Glowing trend line */}
-            <path
-              d="M 0 40 Q 30 35, 50 25 T 100 20 T 130 10 T 160 5"
-              stroke="#8B5CF6"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-            />
+                {/* Glowing trend line */}
+                <path
+                  d="M 0 40 Q 30 35, 50 25 T 100 20 T 130 10 T 160 5"
+                  stroke="#8B5CF6"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                />
 
-            {/* End glowing data point */}
-            <circle cx="160" cy="5" r="4" fill="#C084FC" className="animate-pulse" />
+                {/* End glowing data point */}
+                <circle cx="160" cy="5" r="4" fill="#C084FC" className="animate-pulse" />
+              </>
+            ) : (
+              /* Flat baseline when 0 submissions */
+              <path
+                d="M 0 45 L 160 45"
+                stroke="#2A3647"
+                strokeWidth="2"
+                strokeDasharray="4 4"
+              />
+            )}
           </svg>
         </div>
       </div>
 
       {/* Footer Indicator */}
       <div className="flex items-center gap-2 pt-3 border-t border-[#2A3647]/60 text-xs font-mono relative z-10">
-        <span className="px-2 py-0.5 rounded bg-[#0A9E4A]/15 border border-[#0A9E4A]/30 text-[#0A9E4A] font-bold flex items-center gap-1 text-[11px]">
-          <TrendingUp className="w-3 h-3" />
-          ↗ {velocityPercent}%
-        </span>
-        <span className="text-slate-400 text-[11px]">From last 7 days</span>
+        {actualCount > 0 ? (
+          <>
+            <span className="px-2 py-0.5 rounded bg-[#0A9E4A]/15 border border-[#0A9E4A]/30 text-[#0A9E4A] font-bold flex items-center gap-1 text-[11px]">
+              <TrendingUp className="w-3 h-3" />
+              ↗ {velocityPercent || 100}%
+            </span>
+            <span className="text-slate-400 text-[11px]">Live synced records</span>
+          </>
+        ) : (
+          <span className="text-slate-500 text-[11px]">No submissions recorded yet</span>
+        )}
       </div>
     </div>
   );

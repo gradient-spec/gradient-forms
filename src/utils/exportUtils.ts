@@ -22,9 +22,22 @@ export function exportToCSV(form: Form, responses: FormResponse[]) {
       const val = r.answers[q.id];
       let str = '';
       if (val !== undefined && val !== null) {
-        if (Array.isArray(val)) str = val.join('; ');
-        else if (typeof val === 'object') str = JSON.stringify(val);
-        else str = String(val);
+        if (Array.isArray(val)) {
+          str = val.map(item => {
+            if (typeof item === 'string' && (item.startsWith('Other:') || item === '__other__')) return item;
+            const opt = q.options?.find(o => o.id === item);
+            return opt ? opt.label : item;
+          }).join('; ');
+        } else if (typeof val === 'object') {
+          str = JSON.stringify(val);
+        } else {
+          if (typeof val === 'string' && (val.startsWith('Other:') || val === '__other__')) {
+            str = val;
+          } else {
+            const opt = q.options?.find(o => o.id === val);
+            str = opt ? opt.label : String(val);
+          }
+        }
       }
       row.push(`"${str.replace(/"/g, '""')}"`);
     });

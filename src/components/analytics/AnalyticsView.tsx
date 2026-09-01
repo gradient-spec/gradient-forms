@@ -1,235 +1,188 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
-import { SubmissionVelocityCard } from '../cards/SubmissionVelocityCard';
-import { CompletionTimeCard } from '../cards/CompletionTimeCard';
-import { GoogleSheetsSyncCard } from '../cards/GoogleSheetsSyncCard';
-import { format, subDays, isSameDay } from 'date-fns';
-
+import { FormResponse } from '../../types';
+import { ArrowLeft } from 'lucide-react';
 import { isFormEdited } from '../../utils/formFilters';
+import {
+  computeAnalyticsOverview,
+  computeQuestionAnalytics,
+  computeSectionAnalytics,
+  computeQuizAnalytics,
+  computeTrendAnalytics
+} from '../../utils/analyticsEngine';
+import { AnalyticsHeader } from './AnalyticsHeader';
+import { AnalyticsTabs, AnalyticsTabType } from './AnalyticsTabs';
+import { OverviewTab } from './OverviewTab';
+import { ByQuestionTab } from './ByQuestionTab';
+import { ByRespondentTab } from './ByRespondentTab';
+import { AnalyticsEmptyState } from './AnalyticsEmptyState';
+import { ResponseDetailModal } from '../responses/ResponseDetailModal';
 
 export const AnalyticsView: React.FC = () => {
-  const { forms, activeFormId, setActiveFormId, responses } = useApp();
-  const [timeRange, setTimeRange] = useState<'7d' | '30d' | 'all'>('7d');
+  const {
+    forms,
+    activeFormId,
+    setActiveFormId,
+    responses,
+    deleteResponse,
+    showToast,
+    setActiveView
+  } = useApp();
 
+  // Navigation & filtering state
+  const [activeTab, setActiveTab] = useState<AnalyticsTabType>('overview');
+  const [timeRange, setTimeRange] = useState<'today' | '7d' | '30d' | '90d' | 'all'>('30d');
+  const [selectedResponse, setSelectedResponse] = useState<FormResponse | null>(null);
+
+  // Active form detection
   const editedForms = forms.filter(isFormEdited);
   const currentForm = editedForms.find(f => f.id === activeFormId) || editedForms[0] || forms[0];
-  const formResponses = responses.filter(r => r.formId === currentForm?.id);
 
-  // 1. Calculate Real Daily Influx Trend
-  const daysCount = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : 14;
-  const dailyTrendData = Array.from({ length: daysCount }).map((_, idx) => {
-    const targetDate = subDays(new Date(), daysCount - 1 - idx);
-    const dateLabel = format(targetDate, 'MMM dd');
-    const dayResponsesCount = formResponses.filter(r => {
-      const respDate = new Date(r.submittedAt);
-      return isSameDay(respDate, targetDate);
-    }).length;
+  // Scoped responses for current form
+  const formResponses = useMemo(() => {
+    if (!currentForm) return [];
+    return responses.filter(r => r.formId === currentForm.id);
+  }, [responses, currentForm]);
 
-    return {
-      date: dateLabel,
-      responses: dayResponsesCount
-    };
-  });
+  // Analytics Engine Calculations
+  const overview = useMemo(() => {
+    if (!currentForm) return null;
+    return computeAnalyticsOverview(currentForm, formResponses);
+  }, [currentForm, formResponses]);
 
-  // 2. Calculate Real Avg Completion Time
-  const totalTimeSpent = formResponses.reduce((sum, r) => sum + (r.timeSpentSeconds || 0), 0);
-  const avgSeconds = formResponses.length > 0 ? Math.round(totalTimeSpent / formResponses.length) : 0;
-  const formattedTimeText = avgSeconds >= 60
-    ? `${Math.floor(avgSeconds / 60)}m ${avgSeconds % 60}s`
-    : `${avgSeconds}s`;
+  const questionsAnalytics = useMemo(() => {
+    if (!currentForm) return [];
+    return computeQuestionAnalytics(currentForm, formResponses);
+  }, [currentForm, formResponses]);
 
-  const realCompletionRate = formResponses.length > 0 ? 100 : 0;
+  const sectionFunnel = useMemo(() => {
+    if (!currentForm) return [];
+    return computeSectionAnalytics(currentForm, formResponses);
+  }, [currentForm, formResponses]);
 
-  // 3. Calculate Real Question Answer Breakdown
-  const choiceQuestions = (currentForm?.questions || []).filter(q =>
-    ['multiple_choice', 'checkboxes', 'dropdown'].includes(q.type) && q.options && q.options.length > 0
-  );
+  const quizAnalytics = useMemo(() => {
+    if (!currentForm) return null;
+    return computeQuizAnalytics(currentForm, formResponses);
+  }, [currentForm, formResponses]);
 
-  const primaryQuestion = choiceQuestions[0] || (currentForm?.questions || [])[0];
+  const trendData = useMemo(() => {
+    if (!currentForm) return [];
+    return computeTrendAnalytics(currentForm, formResponses, timeRange, 'daily');
+  }, [currentForm, formResponses, timeRange]);
 
-  let questionBreakdown: { label: string; count: number }[] = [];
-
-  if (primaryQuestion && primaryQuestion.options) {
-    questionBreakdown = primaryQuestion.options.map(opt => {
-      let count = 0;
-      formResponses.forEach(resp => {
-        const userAns = resp.answers[primaryQuestion.id];
-        if (Array.isArray(userAns)) {
-          if (userAns.includes(opt.id) || userAns.includes(opt.label)) count++;
-        } else if (userAns === opt.id || userAns === opt.label) {
-          count++;
-        }
-      });
-      return {
-        label: opt.label.length > 18 ? `${opt.label.substring(0, 15)}...` : opt.label,
-        count
-      };
-    });
-  } else if (primaryQuestion) {
-    // For text or other question types
-    questionBreakdown = [
-      { label: 'Answered', count: formResponses.filter(r => !!r.answers[primaryQuestion.id]).length },
-      { label: 'Skipped', count: formResponses.filter(r => !r.answers[primaryQuestion.id]).length }
-    ];
-  } else {
-    questionBreakdown = [
-      { label: 'No Questions', count: 0 }
-    ];
+  if (!currentForm || !overview) {
+    return (
+      <div className="p-8 max-w-7xl mx-auto">
+        <AnalyticsEmptyState
+          title="NO FORMS FOUND"
+          description="Create a form first to inspect analytics and respondent logs."
+          onShareClick={() => setActiveView('dashboard')}
+        />
+      </div>
+    );
   }
 
-  // 4. Device Breakdown (Derived from responses telemetry or balanced estimate)
-  const deviceDistribution = formResponses.length > 0
-    ? [
-        { name: 'Desktop', value: Math.round(formResponses.length * 0.7) || 1, color: '#2563EB' },
-        { name: 'Mobile', value: Math.round(formResponses.length * 0.3) || 1, color: '#38BDF8' }
-      ]
-    : [
-        { name: 'Desktop', value: 0, color: '#2563EB' },
-        { name: 'Mobile', value: 0, color: '#38BDF8' }
-      ];
+  const handleDeleteResponse = (responseId: string) => {
+    deleteResponse(responseId);
+    showToast('Response Deleted', 'The submission was removed from analytics.', 'info');
+  };
 
   return (
-    <div className="p-4 md:p-8 space-y-8 max-w-7xl mx-auto">
-      {/* Header Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="font-heading font-bold text-2xl md:text-3xl text-white">
-            Analytics <span className="text-[#38BDF8]">OS Control Center</span>
-          </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Real-time visual metrics, completion velocity, and question answer distributions.
-          </p>
-        </div>
+    <div className="text-slate-100 pb-28">
+      {/* Full-width Top Edge Navigation Bar */}
+      <div className="w-full border-b border-[#2A3647]/80 bg-[#0B0F14]/90 backdrop-blur-md px-4 sm:px-6 md:px-8 py-2.5 flex items-center justify-between sticky top-0 z-30">
+        <button
+          type="button"
+          onClick={() => setActiveView('dashboard')}
+          className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#1A2332] hover:bg-[#222C3D] border border-[#2A3647] hover:border-[#38BDF8]/60 text-slate-300 hover:text-white text-xs font-semibold shadow-xs transition-all duration-200 group cursor-pointer"
+          title="Back to Forms Workspace"
+        >
+          <ArrowLeft className="w-3.5 h-3.5 text-[#38BDF8] group-hover:-translate-x-1 transition-transform" />
+          <span>Back to Forms</span>
+        </button>
 
-        {/* Controls */}
-        <div className="flex items-center gap-3">
-          <select
-            value={currentForm?.id}
-            onChange={(e) => setActiveFormId(e.target.value)}
-            className="bg-[#1A2332] border border-[#2A3647] rounded-lg px-3 py-1.5 text-xs font-medium text-white focus:outline-none focus:border-[#2563EB]"
-          >
-            {editedForms.map(f => (
-              <option key={f.id} value={f.id}>{f.title} ({responses.filter(r => r.formId === f.id).length})</option>
-            ))}
-          </select>
-
-          <div className="flex items-center p-0.5 rounded-lg bg-[#1A2332] border border-[#2A3647]">
-            {(['7d', '30d', 'all'] as const).map(range => (
-              <button
-                key={range}
-                onClick={() => setTimeRange(range)}
-                className={`px-3 py-1 rounded text-xs font-mono uppercase transition-colors ${
-                  timeRange === range
-                    ? 'bg-[#2563EB] text-white font-bold'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                {range}
-              </button>
-            ))}
-          </div>
+        <div className="flex items-center gap-2 text-xs font-mono text-slate-400">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span>Live Data Feed</span>
         </div>
       </div>
 
-      {/* Purposeful Card Primitives Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <SubmissionVelocityCard
-          count={formResponses.length}
-          velocityPercent={formResponses.length > 0 ? 100 : 0}
+      <div className="p-4 sm:p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
+        {/* 1. Analytics Header Bar */}
+        <AnalyticsHeader
+          forms={editedForms.length > 0 ? editedForms : forms}
+          currentForm={currentForm}
+          onSelectForm={setActiveFormId}
+          formResponses={formResponses}
+          onBackToForms={() => setActiveView('dashboard')}
+          showToast={showToast}
+          timeRange={timeRange}
+          onChangeTimeRange={setTimeRange}
         />
-        <CompletionTimeCard
-          timeText={formattedTimeText}
-          completionRate={realCompletionRate}
-          speedImprovementPercent={formResponses.length > 0 ? 15 : 0}
+
+      {/* 2. When 0 Responses Exist: Render Professional Empty State */}
+      {formResponses.length === 0 ? (
+        <AnalyticsEmptyState
+          title="NO RESPONSE DATA YET"
+          description="Analytics, completion rates, and question distributions will appear here as soon as respondents submit this form."
+          formTitle={currentForm.title}
+          onShareClick={() => {
+            if (navigator?.clipboard) {
+              const url = `${window.location.origin}/preview?formId=${currentForm.id}`;
+              navigator.clipboard.writeText(url);
+              showToast('Form Link Copied 📋', 'Share this link to start collecting responses.', 'success');
+            }
+          }}
         />
-        <GoogleSheetsSyncCard />
-      </div>
+      ) : (
+        /* 3. When Responses Exist: Tab Navigation + Active View */
+        <div className="space-y-6">
+          <AnalyticsTabs
+            activeTab={activeTab}
+            onSelectTab={setActiveTab}
+            questionsCount={currentForm.questions?.length || 0}
+            responsesCount={formResponses.length}
+          />
 
-      {/* Response Trend Area Chart */}
-      <div className="p-6 rounded-2xl bg-[#1A2332] border border-[#2A3647] space-y-4 shadow-neo">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-base font-bold font-heading text-white">Daily Influx Velocity</h3>
-            <p className="text-xs text-slate-400">Actual daily submission frequency for {currentForm?.title}</p>
-          </div>
-          <span className="text-xs font-mono text-[#38BDF8] bg-[#2563EB]/10 px-3 py-1 rounded-lg border border-[#2563EB]/30">
-            Total: {formResponses.length} submissions
-          </span>
+          {/* Active Tab View Render */}
+          {activeTab === 'overview' && (
+            <OverviewTab
+              form={currentForm}
+              overview={overview}
+              sectionFunnel={sectionFunnel}
+              quizAnalytics={quizAnalytics}
+              trendData={trendData}
+              recentResponses={formResponses}
+              onSelectResponse={setSelectedResponse}
+              onNavigateToTab={setActiveTab}
+            />
+          )}
+
+          {activeTab === 'by_question' && (
+            <ByQuestionTab
+              questionsAnalytics={questionsAnalytics}
+            />
+          )}
+
+          {activeTab === 'by_respondent' && (
+            <ByRespondentTab
+              form={currentForm}
+              responses={formResponses}
+              onSelectResponse={setSelectedResponse}
+              onDeleteResponse={handleDeleteResponse}
+            />
+          )}
         </div>
+      )}
 
-        <div className="h-64 w-full pt-2">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={dailyTrendData}>
-              <defs>
-                <linearGradient id="colorResponses" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#2563EB" stopOpacity={0.6} />
-                  <stop offset="95%" stopColor="#2563EB" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#2A3647" />
-              <XAxis dataKey="date" stroke="#84A1C0" fontSize={11} fontFamily="JetBrains Mono" />
-              <YAxis stroke="#84A1C0" fontSize={11} fontFamily="JetBrains Mono" allowDecimals={false} />
-              <Tooltip
-                contentStyle={{ backgroundColor: '#121820', borderColor: '#2A3647', borderRadius: '8px', color: '#fff', fontSize: '12px' }}
-              />
-              <Area type="monotone" dataKey="responses" stroke="#38BDF8" strokeWidth={2} fillOpacity={1} fill="url(#colorResponses)" />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Grid: Bar Chart & Pie Chart */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-8 p-6 rounded-2xl bg-[#1A2332] border border-[#2A3647] space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold font-heading text-white">Question Answer Breakdown</h3>
-            {primaryQuestion && (
-              <span className="text-xs font-mono text-slate-400">
-                Q: {primaryQuestion.title}
-              </span>
-            )}
-          </div>
-          <div className="h-56 w-full pt-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={questionBreakdown}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#2A3647" />
-                <XAxis dataKey="label" stroke="#84A1C0" fontSize={11} />
-                <YAxis stroke="#84A1C0" fontSize={11} fontFamily="JetBrains Mono" allowDecimals={false} />
-                <Tooltip contentStyle={{ backgroundColor: '#121820', borderColor: '#2A3647', borderRadius: '8px', color: '#fff', fontSize: '12px' }} />
-                <Bar dataKey="count" fill="#2563EB" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="lg:col-span-4 p-6 rounded-2xl bg-[#1A2332] border border-[#2A3647] space-y-4 flex flex-col justify-between">
-          <h3 className="text-base font-bold font-heading text-white">Device Breakdown</h3>
-          <div className="h-40 w-full flex items-center justify-center">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={deviceDistribution} innerRadius={45} outerRadius={65} paddingAngle={4} dataKey="value">
-                  {deviceDistribution.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={{ backgroundColor: '#121820', borderRadius: '8px', color: '#fff', fontSize: '12px' }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="space-y-2 border-t border-[#2A3647] pt-3">
-            {deviceDistribution.map((d, i) => (
-              <div key={i} className="flex items-center justify-between text-xs text-slate-300">
-                <div className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
-                  <span>{d.name}</span>
-                </div>
-                <span className="font-mono font-bold text-white">{d.value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* 4. Response Detail Inspection Modal */}
+      {selectedResponse && (
+        <ResponseDetailModal
+          response={selectedResponse}
+          form={currentForm}
+          onClose={() => setSelectedResponse(null)}
+        />
+      )}
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Sparkles, ArrowRight, Eye, Check, Star, BookOpen, Briefcase, Calendar, ShieldAlert } from 'lucide-react';
+import { Sparkles, ArrowRight, Eye, Check, Star, BookOpen, Briefcase, Calendar, ShieldAlert, ArrowLeft } from 'lucide-react';
 
 export const TemplatesGallery: React.FC = () => {
   const { createFormFromTemplate, setActiveView } = useApp();
@@ -25,8 +25,21 @@ export const TemplatesGallery: React.FC = () => {
   };
 
   return (
-    <div className="p-4 md:p-8 space-y-8 max-w-7xl mx-auto">
-      {/* Header Bar */}
+    <div className="text-slate-100 pb-24">
+      {/* Full-width Top Edge Navigation Bar */}
+      <div className="w-full border-b border-[#2A3647]/80 bg-[#0B0F14]/90 backdrop-blur-md px-4 sm:px-6 md:px-8 py-2.5 flex items-center justify-between sticky top-0 z-30">
+        <button
+          onClick={() => setActiveView('dashboard')}
+          className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#1A2332] hover:bg-[#222C3D] border border-[#2A3647] hover:border-[#38BDF8]/60 text-slate-300 hover:text-white text-xs font-semibold shadow-xs transition-all duration-200 group cursor-pointer"
+          title="Back to Forms Workspace"
+        >
+          <ArrowLeft className="w-4 h-4 text-[#38BDF8] group-hover:-translate-x-1 transition-transform" />
+          <span>Back to Forms</span>
+        </button>
+      </div>
+
+      <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
+        {/* Header Bar */}
       <div>
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/30 text-violet-300 text-xs font-semibold mb-3">
           <Sparkles className="w-3.5 h-3.5" />
@@ -96,6 +109,7 @@ export const TemplatesGallery: React.FC = () => {
             </div>
           );
         })}
+      </div>
       </div>
     </div>
   );

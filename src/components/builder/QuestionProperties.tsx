@@ -169,6 +169,37 @@ export const QuestionProperties: React.FC<QuestionPropertiesProps> = ({
           </div>
         )}
 
+        {['multiple_choice', 'checkboxes', 'dropdown'].includes(question.type) && (
+          <div className="p-2.5 rounded-lg bg-[#161D27] border border-[#2A3647] space-y-2">
+            <label className="flex items-center justify-between cursor-pointer">
+              <span className="text-[11px] font-semibold text-slate-200">
+                Allow "Other" Option
+              </span>
+              <input
+                type="checkbox"
+                checked={Boolean(question.allowOther)}
+                onChange={(e) => onUpdate({ allowOther: e.target.checked })}
+                className="w-4 h-4 rounded accent-[#2563EB]"
+              />
+            </label>
+            <p className="text-[10px] text-slate-400 leading-tight">
+              Allows respondents to provide custom answers not listed in the predefined choices.
+            </p>
+            {question.allowOther && (
+              <div className="pt-1">
+                <label className="block text-[10px] text-slate-400 mb-1">Other Field Placeholder</label>
+                <input
+                  type="text"
+                  value={question.otherPlaceholder || ''}
+                  onChange={(e) => onUpdate({ otherPlaceholder: e.target.value })}
+                  placeholder="Please specify your custom answer..."
+                  className="w-full bg-[#121820] px-2.5 py-1 rounded text-xs text-white border border-[#2A3647] focus:border-[#2563EB] focus:outline-none placeholder-slate-600"
+                />
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label className="block text-[10px] text-[#84A1C0] mb-1 font-mono">Min Length</label>

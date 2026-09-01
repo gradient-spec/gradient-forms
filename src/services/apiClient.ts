@@ -81,4 +81,34 @@ export class ApiClient {
   static async getWorkspaceActivity(workspaceId: string) {
     return this.request<{ success: boolean; data: any[] }>(`/workspaces/${workspaceId}/activity`);
   }
+
+  // Google Sheets Integration API
+  static async getGoogleSheetsIntegration(formId: string) {
+    return this.request<{
+      success: boolean;
+      data: {
+        connected: boolean;
+        spreadsheetId?: string;
+        spreadsheetUrl?: string;
+        sheetName?: string;
+        lastSyncedAt?: string;
+        syncStatus?: 'synced' | 'syncing' | 'pending' | 'failed' | 'not_connected';
+      };
+    }>(`/forms/${formId}/integrations/google-sheets`);
+  }
+
+  static async syncGoogleSheets(formId: string) {
+    return this.request<{
+      success: boolean;
+      message: string;
+      data: {
+        syncedCount: number;
+        lastSyncedAt: string;
+        spreadsheetUrl: string;
+        syncStatus: string;
+      };
+    }>(`/forms/${formId}/integrations/google-sheets/sync`, {
+      method: 'POST'
+    });
+  }
 }

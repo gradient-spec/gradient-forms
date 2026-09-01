@@ -32,6 +32,11 @@ export const getFormIdFromUrl = (customUrl?: string): string | null => {
     if (id) return decodeURIComponent(id);
   }
 
+  if (hash.startsWith('#/sheets/')) {
+    const id = hash.replace('#/sheets/', '').split('?')[0].split('/')[0];
+    if (id) return decodeURIComponent(id);
+  }
+
   // Check URL search parameters ?formId=xyz
   try {
     const searchParams = new URLSearchParams(search);
@@ -39,6 +44,28 @@ export const getFormIdFromUrl = (customUrl?: string): string | null => {
     if (formIdParam) return decodeURIComponent(formIdParam);
   } catch (e) {
     console.error('Error parsing URL search params:', e);
+  }
+
+  return null;
+};
+
+/**
+ * Parses requested view from URL query params or hash
+ */
+export const getViewFromUrl = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  const hash = window.location.hash;
+  const search = window.location.search;
+
+  if (hash.startsWith('#/sheets/')) return 'sheets';
+  if (hash.startsWith('#/f/') || hash.startsWith('#/published/')) return 'published';
+
+  try {
+    const searchParams = new URLSearchParams(search);
+    const viewParam = searchParams.get('view');
+    if (viewParam) return viewParam;
+  } catch (e) {
+    console.error('Error parsing view search param:', e);
   }
 
   return null;

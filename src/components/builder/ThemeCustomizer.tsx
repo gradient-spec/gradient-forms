@@ -19,7 +19,7 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[100] flex justify-end bg-black/60 backdrop-blur-sm">
       <div className="w-full max-w-md h-full glass-panel border-l border-white/10 p-6 space-y-6 overflow-y-auto animate-slide-left">
         <div className="flex items-center justify-between border-b border-white/10 pb-4">
           <div className="flex items-center gap-2">
@@ -36,7 +36,7 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({
           <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Theme Presets</span>
           <div className="grid grid-cols-2 gap-3">
             {PRESET_THEMES.map((theme) => {
-              const isSelected = activeTheme.id === theme.id;
+              const isSelected = (activeTheme?.id || PRESET_THEMES[0].id) === theme.id;
               return (
                 <button
                   key={theme.id}

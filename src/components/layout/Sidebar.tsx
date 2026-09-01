@@ -5,14 +5,8 @@ import {
   LayoutDashboard,
   FileEdit,
   Sparkles,
-  MessageSquareText,
-  BarChart3,
-  Users,
-  Settings,
-  Home,
   ChevronLeft,
-  ChevronRight,
-  Database
+  ChevronRight
 } from 'lucide-react';
 
 import { isFormEdited } from '../../utils/formFilters';
@@ -30,20 +24,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggleCollapse })
     { id: 'dashboard', label: 'Forms', icon: LayoutDashboard, badge: editedFormsCount },
     { id: 'builder', label: 'Builder', icon: FileEdit },
     { id: 'templates', label: 'Templates', icon: Sparkles },
-    { id: 'responses', label: 'Responses', icon: MessageSquareText },
-    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-    { id: 'integrations', label: 'Integrations', icon: Database },
-    { id: 'team', label: 'Team', icon: Users },
-  ];
-
-  const bottomItems: { id: ActiveView; label: string; icon: React.FC<{ className?: string }> }[] = [
-    { id: 'landing', label: 'Home Page', icon: Home },
-    { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
   return (
     <aside
-      className={`h-[calc(100vh-3.5rem)] sticky top-14 bg-[#121820] border-r border-[#2A3647] flex flex-col justify-between transition-all duration-200 z-30 ${
+      className={`h-[calc(100vh-3.5rem)] sticky top-0 bg-[#121820] border-r border-[#2A3647] flex flex-col justify-between transition-all duration-200 z-30 ${
         collapsed ? 'w-14' : 'w-56'
       }`}
     >
@@ -89,30 +74,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggleCollapse })
         </div>
       </div>
 
-      {/* Bottom Navigation & Collapse Button */}
-      <div className="p-2 border-t border-[#2A3647] space-y-2">
-        <nav className="space-y-0.5">
-          {bottomItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeView === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveView(item.id)}
-                title={collapsed ? item.label : undefined}
-                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  isActive
-                    ? 'bg-[#1A2332] text-white border border-[#2A3647]'
-                    : 'text-slate-400 hover:text-slate-100 hover:bg-[#1A2332]'
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                {!collapsed && <span className="truncate">{item.label}</span>}
-              </button>
-            );
-          })}
-        </nav>
-
+      {/* Collapse Button */}
+      <div className="p-2 border-t border-[#2A3647]">
         {/* Toggle Collapse */}
         <button
           onClick={onToggleCollapse}

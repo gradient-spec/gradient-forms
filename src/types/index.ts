@@ -69,6 +69,24 @@ export interface Question {
   points?: number;
   correctAnswer?: string | string[];
   maxSelections?: number;
+  allowOther?: boolean;
+  otherPlaceholder?: string;
+  // Media & Formatting
+  imageUrl?: string;
+  imageCaption?: string;
+  videoUrl?: string;
+  videoCaption?: string;
+  titleStyle?: {
+    size?: 'sm' | 'md' | 'lg';
+    bold?: boolean;
+    italic?: boolean;
+    underline?: boolean;
+  };
+  descriptionStyle?: {
+    bold?: boolean;
+    italic?: boolean;
+    underline?: boolean;
+  };
 }
 
 export interface Section {
@@ -91,6 +109,8 @@ export interface DesignTheme {
 
 export interface FormSettings {
   collectEmail: boolean;
+  emailCollectionMode?: 'responder_input' | 'verified';
+  sendResponseCopy?: 'off' | 'when_requested' | 'always';
   limitOneResponse: boolean;
   allowEditResponse: boolean;
   saveProgress: boolean;
@@ -102,6 +122,14 @@ export interface FormSettings {
   responseLimit?: number;
   redirectUrl?: string;
   confirmationMessage: string;
+  communityLink?: string;
+  communityLinkText?: string;
+  // Agreement & Data Sharing
+  requireAgreement?: boolean;
+  agreementText?: string;
+  // Response Deadline / Form Expiry
+  expiresAt?: string; // ISO string timestamp (e.g. 2026-09-15T23:59:00.000Z)
+  expiryMessage?: string;
 }
 
 export interface FormVersion {
@@ -117,7 +145,9 @@ export interface Form {
   title: string;
   description: string;
   isPublished: boolean;
-  status: 'draft' | 'published' | 'archived';
+  status: 'draft' | 'published' | 'closed' | 'archived';
+  expiresAt?: string;
+  expiryMessage?: string;
   createdAt: string;
   updatedAt: string;
   responseCount: number;
@@ -166,6 +196,7 @@ export interface IntegrationConfig {
     spreadsheetId?: string;
     sheetName?: string;
     lastSynced?: string;
+    webhookUrl?: string;
   };
   googleDrive: {
     connected: boolean;
@@ -242,4 +273,5 @@ export type ActiveView =
   | 'integrations'
   | 'templates'
   | 'team'
-  | 'settings';
+  | 'settings'
+  | 'sheets';

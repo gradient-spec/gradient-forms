@@ -4,8 +4,17 @@ export const validateFieldValue = (question: Question, value: any): string | nul
   // Required Check
   if (question.required || question.validation?.required) {
     if (value === undefined || value === null) return `${question.title} is required.`;
-    if (typeof value === 'string' && value.trim() === '') return `${question.title} is required.`;
-    if (Array.isArray(value) && value.length === 0) return `${question.title} is required.`;
+    if (typeof value === 'string') {
+      if (value.trim() === '') return `${question.title} is required.`;
+      if (value === '__other__' || value.trim() === 'Other:') {
+        return `Please specify your custom answer for ${question.title}.`;
+      }
+    }
+    if (Array.isArray(value)) {
+      if (value.length === 0) return `${question.title} is required.`;
+      const hasValid = value.some(item => item !== '__other__' && item !== 'Other:' && String(item).trim() !== '');
+      if (!hasValid) return `Please specify your custom answer for ${question.title}.`;
+    }
   }
 
   if (value === undefined || value === null || value === '') return null;

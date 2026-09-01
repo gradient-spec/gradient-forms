@@ -88,10 +88,10 @@ export const InteractiveDemo: React.FC = () => {
             </button>
 
             <button
-              onClick={() => { createBlankForm(); setActiveView('builder'); }}
+              onClick={() => setActiveView('dashboard')}
               className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-[#2563EB] hover:bg-[#1d4ed8] text-white font-semibold text-xs transition-colors"
             >
-              <span>Open Full OS Builder</span>
+              <span>Open Forms Workspace</span>
             </button>
           </div>
         </div>

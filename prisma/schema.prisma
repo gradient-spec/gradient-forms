@@ -17,6 +17,7 @@ enum Role {
 enum FormStatus {
   DRAFT
   PUBLISHED
+  CLOSED
   ARCHIVED
 }
 
@@ -97,6 +98,8 @@ model Form {
   description  String?
   status       FormStatus @default(DRAFT)
   isPublished  Boolean    @default(false)
+  expiresAt    DateTime?
+  expiryMessage String?
   settingsJson Json
   themeJson    Json
   deletedAt    DateTime?

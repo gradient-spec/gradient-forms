@@ -6,6 +6,7 @@ import {
   Workspace,
   Question,
   QuestionType,
+  Section,
   DesignTheme,
   Comment,
   IntegrationConfig,
@@ -18,6 +19,7 @@ import {
 import { SEED_FORMS, SEED_RESPONSES, INITIAL_WORKSPACE, DEFAULT_CURRENT_USER } from '../data/seedData';
 import { PRESET_THEMES } from '../data/presetThemes';
 import { ApiClient } from '../services/apiClient';
+import { GoogleSheetsService } from '../services/googleSheetsService';
 
 interface ToastMessage {
   id: string;
@@ -69,6 +71,14 @@ interface AppContextType {
   deleteQuestion: (formId: string, questionId: string) => void;
   reorderQuestions: (formId: string, newQuestions: Question[]) => void;
   duplicateQuestion: (formId: string, questionId: string) => void;
+
+  // Section Actions
+  addSection: (formId: string, title?: string, description?: string) => string;
+  updateSection: (formId: string, sectionId: string, updates: Partial<Section>) => void;
+  deleteSection: (formId: string, sectionId: string) => void;
+  duplicateSection: (formId: string, sectionId: string) => string;
+  reorderSections: (formId: string, fromIndex: number, toIndex: number) => void;
+  moveQuestionToSection: (formId: string, questionId: string, targetSectionId: string) => void;
   
   // Response Actions
   submitResponse: (formId: string, answers: Record<string, any>, timeSpentSeconds: number, respondentEmail?: string, respondentName?: string) => void;
@@ -80,6 +90,10 @@ interface AppContextType {
   
   // Integrations
   updateIntegrations: (updates: Partial<IntegrationConfig>) => void;
+
+  // Profile Action
+  updateUserProfile: (updates: { name?: string; email?: string; avatar?: string }) => void;
+  updateWorkspaceName: (name: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -90,8 +104,50 @@ const LOCAL_STORAGE_KEY_WORKSPACE = 'gradient_forms_v1_workspace';
 const LOCAL_STORAGE_KEY_INVITES = 'gradient_forms_v1_invites';
 const LOCAL_STORAGE_KEY_ACTIVITIES = 'gradient_forms_v1_activities';
 
+export const ensureFormDefaults = (form: Form): Form => {
+  if (!form) return form;
+  const sections: Section[] = form.sections && form.sections.length > 0
+    ? form.sections
+    : [{ id: 'sec-main', title: 'Main Section' }];
+  const defaultSectionId = sections[0].id;
+
+  return {
+    ...form,
+    title: form.title || 'Untitled Form',
+    description: form.description || '',
+    sections,
+    questions: (form.questions || []).map(q => ({
+      ...q,
+      sectionId: (q.sectionId && sections.some(s => s.id === q.sectionId)) ? q.sectionId : defaultSectionId,
+      options: q.options || [],
+      validation: q.validation || (q.required !== undefined ? { required: q.required } : undefined)
+    })),
+    logicRules: form.logicRules || [],
+    versions: form.versions || [],
+    expiresAt: form.expiresAt || form.settings?.expiresAt,
+    expiryMessage: form.expiryMessage || form.settings?.expiryMessage,
+    settings: {
+      collectEmail: form.settings?.collectEmail ?? true,
+      limitOneResponse: form.settings?.limitOneResponse ?? false,
+      allowEditResponse: form.settings?.allowEditResponse ?? false,
+      saveProgress: form.settings?.saveProgress ?? true,
+      showProgressBar: form.settings?.showProgressBar ?? true,
+      shuffleQuestions: form.settings?.shuffleQuestions ?? false,
+      quizMode: form.settings?.quizMode ?? false,
+      releaseGradeImmediately: form.settings?.releaseGradeImmediately ?? true,
+      confirmationMessage: form.settings?.confirmationMessage || 'Your response has been submitted successfully.',
+      communityLink: form.settings?.communityLink || 'https://chat.whatsapp.com/invite',
+      communityLinkText: form.settings?.communityLinkText || 'Join Gradient Club WhatsApp Group',
+      requireAgreement: form.settings?.requireAgreement ?? false,
+      agreementText: form.settings?.agreementText || 'By submitting this form, you agree to share the information provided with the Gradient Club of St. Peter’s Engineering College for official club purposes.',
+      expiresAt: form.settings?.expiresAt || form.expiresAt,
+      expiryMessage: form.settings?.expiryMessage || form.expiryMessage
+    }
+  };
+};
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [activeView, setActiveView] = useState<ActiveView>('landing');
+  const [activeView, setActiveView] = useState<ActiveView>('dashboard');
   const [activeFormId, setActiveFormId] = useState<string | null>('form-cs-feedback');
   
   const [forms, setForms] = useState<Form[]>(() => {
@@ -99,17 +155,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (saved) {
       try {
         const parsed: Form[] = JSON.parse(saved);
-        const existingIds = new Set(parsed.map(f => f.id));
-        const missingSeedForms = SEED_FORMS.filter(f => !existingIds.has(f.id));
-        if (missingSeedForms.length > 0) {
-          const merged = [...parsed, ...missingSeedForms];
-          localStorage.setItem(LOCAL_STORAGE_KEY_FORMS, JSON.stringify(merged));
-          return merged;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map(ensureFormDefaults);
         }
-        return parsed;
       } catch (e) { console.error(e); }
     }
-    return SEED_FORMS;
+    return SEED_FORMS.map(ensureFormDefaults);
   });
 
   const [responses, setResponses] = useState<FormResponse[]>(() => {
@@ -117,13 +168,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (saved) {
       try {
         const parsed: FormResponse[] = JSON.parse(saved);
-        const existingIds = new Set(parsed.map(r => r.id));
-        const missingSeedResponses = SEED_RESPONSES.filter(r => !existingIds.has(r.id));
-        if (missingSeedResponses.length > 0) {
-          const merged = [...parsed, ...missingSeedResponses];
-          localStorage.setItem(LOCAL_STORAGE_KEY_RESPONSES, JSON.stringify(merged));
-          return merged;
-        }
         return parsed;
       } catch (e) { console.error(e); }
     }
@@ -178,7 +222,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   ]);
 
   const [integrations, setIntegrations] = useState<IntegrationConfig>({
-    googleSheets: { connected: true, spreadsheetId: '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms', sheetName: 'CS304_Lab_Feedback_Responses', lastSynced: 'Just now' },
+    googleSheets: { connected: true, spreadsheetId: undefined, sheetName: 'Form_Responses', lastSynced: 'Just now' },
     googleDrive: { connected: true, folderName: 'Gradient Forms Uploads' },
     emailNotifications: { notifyOwner: true, sendRespondentReceipt: true, customTemplate: 'Thank you {{name}} for submitting {{form_name}}.' },
     webhooks: { enabled: false }
@@ -357,7 +401,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast('Version Restored 🔄', `Restored form state to Version #${targetVer.versionNumber}`, 'success');
   };
 
-  const activeForm = forms.find(f => f.id === activeFormId);
+  const rawActiveForm = forms.find(f => f.id === activeFormId) || forms[0];
+  const activeForm = rawActiveForm ? ensureFormDefaults(rawActiveForm) : undefined;
 
   const showToast = (title: string, description?: string, type: 'success' | 'error' | 'info' = 'success') => {
     const id = 'toast-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5);
@@ -376,7 +421,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const newForm: Form = {
       id,
       title: 'Untitled Form',
-      description: 'Add a description to guide respondents...',
+      description: '',
       isPublished: false,
       status: 'draft',
       createdAt: new Date().toISOString(),
@@ -395,7 +440,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         shuffleQuestions: false,
         quizMode: false,
         releaseGradeImmediately: true,
-        confirmationMessage: 'Your response has been submitted successfully.'
+        confirmationMessage: 'Your response has been submitted successfully.',
+        communityLink: 'https://chat.whatsapp.com/invite',
+        communityLinkText: 'Join Gradient Club WhatsApp Group'
       },
       sections: [
         { id: 'sec-main', title: 'Form Questions', description: '' }
@@ -614,6 +661,139 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
   };
 
+  // Section Management Actions
+  const addSection = (formId: string, title?: string, description?: string): string => {
+    const sectionId = 'sec-' + Date.now();
+    setForms(prev => prev.map(f => {
+      if (f.id === formId) {
+        const count = (f.sections || []).length + 1;
+        const newSection: Section = {
+          id: sectionId,
+          title: title || `Section ${count}`,
+          description: description || ''
+        };
+        return {
+          ...f,
+          sections: [...(f.sections || []), newSection],
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return f;
+    }));
+    showToast('Section Created 📑', 'Created new section/page.', 'success');
+    return sectionId;
+  };
+
+  const updateSection = (formId: string, sectionId: string, updates: Partial<Section>) => {
+    setForms(prev => prev.map(f => {
+      if (f.id === formId) {
+        return {
+          ...f,
+          sections: (f.sections || []).map(s => s.id === sectionId ? { ...s, ...updates } : s),
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return f;
+    }));
+  };
+
+  const deleteSection = (formId: string, sectionId: string) => {
+    const targetForm = forms.find(f => f.id === formId);
+    if (!targetForm) return;
+    if ((targetForm.sections || []).length <= 1) {
+      showToast('Cannot Delete Section', 'A form must contain at least one section.', 'info');
+      return;
+    }
+
+    const remainingSections = targetForm.sections.filter(s => s.id !== sectionId);
+    const fallbackSectionId = remainingSections[0].id;
+
+    setForms(prev => prev.map(f => {
+      if (f.id === formId) {
+        return {
+          ...f,
+          sections: remainingSections,
+          questions: f.questions.map(q => q.sectionId === sectionId ? { ...q, sectionId: fallbackSectionId } : q),
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return f;
+    }));
+    showToast('Section Deleted', 'Section removed; existing questions moved to adjacent section.', 'info');
+  };
+
+  const duplicateSection = (formId: string, sectionId: string): string => {
+    const targetForm = forms.find(f => f.id === formId);
+    if (!targetForm) return '';
+    const targetSection = (targetForm.sections || []).find(s => s.id === sectionId);
+    if (!targetSection) return '';
+
+    const newSectionId = 'sec-' + Date.now();
+    const newSection: Section = {
+      ...targetSection,
+      id: newSectionId,
+      title: `${targetSection.title} (Copy)`
+    };
+
+    // Duplicate all questions inside this section with fresh IDs
+    const sectionQuestions = targetForm.questions.filter(q => q.sectionId === sectionId);
+    const duplicatedQuestions = sectionQuestions.map((q, idx) => ({
+      ...q,
+      id: 'q-' + Date.now() + '-' + idx,
+      sectionId: newSectionId,
+      title: q.title
+    }));
+
+    setForms(prev => prev.map(f => {
+      if (f.id === formId) {
+        const secIndex = f.sections.findIndex(s => s.id === sectionId);
+        const newSections = [...f.sections];
+        newSections.splice(secIndex + 1, 0, newSection);
+
+        return {
+          ...f,
+          sections: newSections,
+          questions: [...f.questions, ...duplicatedQuestions],
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return f;
+    }));
+    showToast('Section Duplicated 📋', `Created copy of section and ${sectionQuestions.length} questions.`, 'success');
+    return newSectionId;
+  };
+
+  const reorderSections = (formId: string, fromIndex: number, toIndex: number) => {
+    setForms(prev => prev.map(f => {
+      if (f.id === formId) {
+        if (fromIndex < 0 || fromIndex >= f.sections.length || toIndex < 0 || toIndex >= f.sections.length) return f;
+        const newSections = [...f.sections];
+        const [moved] = newSections.splice(fromIndex, 1);
+        newSections.splice(toIndex, 0, moved);
+        return {
+          ...f,
+          sections: newSections,
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return f;
+    }));
+  };
+
+  const moveQuestionToSection = (formId: string, questionId: string, targetSectionId: string) => {
+    setForms(prev => prev.map(f => {
+      if (f.id === formId) {
+        return {
+          ...f,
+          questions: f.questions.map(q => q.id === questionId ? { ...q, sectionId: targetSectionId } : q),
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return f;
+    }));
+    showToast('Question Moved', 'Question reassigned to section.', 'success');
+  };
+
   const submitResponse = (
     formId: string,
     answers: Record<string, any>,
@@ -675,6 +855,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return f;
     }));
 
+    // Real-time Google Sheets sync & Webhook dispatch
+    if (integrations.googleSheets?.connected && targetForm) {
+      GoogleSheetsService.syncResponses(targetForm, [newResp], integrations);
+      if (integrations.googleSheets.webhookUrl) {
+        GoogleSheetsService.postRowToWebhook(integrations.googleSheets.webhookUrl, targetForm, newResp)
+          .catch(e => console.warn('Google Sheets Webhook Sync failed:', e));
+      }
+    }
+
     // Async REST sync
     ApiClient.submitResponse(formId, {
       answers,
@@ -682,7 +871,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       respondentEmail: extractedEmail
     }).catch((err: unknown) => console.warn('REST API sync failed:', err));
 
-    showToast('Response Recorded! 🎉', 'Your form submission has been saved.', 'success');
+    showToast('Response Recorded! 🎉', 'Your form submission has been saved & synced.', 'success');
   };
 
   const deleteResponse = (responseId: string) => {
@@ -712,6 +901,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateIntegrations = (updates: Partial<IntegrationConfig>) => {
     setIntegrations(prev => ({ ...prev, ...updates }));
     showToast('Integrations Saved', 'Service preferences updated.', 'success');
+  };
+
+  const updateUserProfile = (updates: { name?: string; email?: string; avatar?: string }) => {
+    setWorkspace(prev => {
+      const updatedMembers = prev.members.map(m => {
+        if (m.role === 'owner' || m.id === currentUser.id) {
+          return {
+            ...m,
+            name: updates.name !== undefined && updates.name.trim() !== '' ? updates.name.trim() : m.name,
+            email: updates.email !== undefined && updates.email.trim() !== '' ? updates.email.trim() : m.email,
+            avatar: updates.avatar !== undefined ? updates.avatar : m.avatar
+          };
+        }
+        return m;
+      });
+      return { ...prev, members: updatedMembers };
+    });
+    logActivity('Updated user profile credentials & avatar', workspace.name);
+    showToast('Profile Updated 👤', 'Your profile details and profile picture have been updated.', 'success');
+  };
+
+  const updateWorkspaceName = (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setWorkspace(prev => ({ ...prev, name: trimmed }));
+    logActivity('Renamed workspace to ' + trimmed, trimmed);
+    showToast('Workspace Renamed 🏢', `Workspace name updated to "${trimmed}".`, 'success');
   };
 
   return (
@@ -751,11 +967,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteQuestion,
         reorderQuestions,
         duplicateQuestion,
+        addSection,
+        updateSection,
+        deleteSection,
+        duplicateSection,
+        reorderSections,
+        moveQuestionToSection,
         submitResponse,
         deleteResponse,
         addComment,
         resolveComment,
-        updateIntegrations
+        updateIntegrations,
+        updateUserProfile,
+        updateWorkspaceName
       }}
     >
       {children}

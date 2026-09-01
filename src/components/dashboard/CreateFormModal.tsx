@@ -22,7 +22,7 @@ export const CreateFormModal: React.FC<{ isOpen: boolean; onClose: () => void }>
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
         <div className="w-full max-w-xl glass-panel border border-violet-500/30 rounded-2xl shadow-glow-violet overflow-hidden">
           {/* Modal Header */}
           <div className="p-6 border-b border-white/10 flex items-center justify-between">
