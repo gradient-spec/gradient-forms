@@ -35,9 +35,7 @@ export const DashboardView: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'draft'>('all');
   const [shareFormId, setShareFormId] = useState<string | null>(null);
 
-  const editedForms = forms.filter(isFormEdited);
-
-  const filteredForms = editedForms.filter(form => {
+  const filteredForms = forms.filter(form => {
     const matchesSearch = form.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           form.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = filterStatus === 'all' ||
@@ -80,8 +78,8 @@ export const DashboardView: React.FC = () => {
 
       {/* Redesigned 2-Panel Forms Summary Area */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
-        <FormsOverviewMetric forms={editedForms} />
-        <PublishedFormsMetric forms={editedForms} />
+        <FormsOverviewMetric forms={forms} />
+        <PublishedFormsMetric forms={forms} />
       </div>
 
       {/* Filter Toolbar */}

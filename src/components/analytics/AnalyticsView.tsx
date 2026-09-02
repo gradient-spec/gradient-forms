@@ -35,8 +35,7 @@ export const AnalyticsView: React.FC = () => {
   const [selectedResponse, setSelectedResponse] = useState<FormResponse | null>(null);
 
   // Active form detection
-  const editedForms = forms.filter(isFormEdited);
-  const currentForm = editedForms.find(f => f.id === activeFormId) || editedForms[0] || forms[0];
+  const currentForm = forms.find(f => f.id === activeFormId) || forms[0];
 
   // Scoped responses for current form
   const formResponses = useMemo(() => {
@@ -72,7 +71,7 @@ export const AnalyticsView: React.FC = () => {
 
   if (!currentForm || !overview) {
     return (
-      <div className="p-8 max-w-7xl mx-auto">
+      <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto">
         <AnalyticsEmptyState
           title="NO FORMS FOUND"
           description="Create a form first to inspect analytics and respondent logs."
@@ -110,7 +109,7 @@ export const AnalyticsView: React.FC = () => {
       <div className="p-4 sm:p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
         {/* 1. Analytics Header Bar */}
         <AnalyticsHeader
-          forms={editedForms.length > 0 ? editedForms : forms}
+          forms={forms}
           currentForm={currentForm}
           onSelectForm={setActiveFormId}
           formResponses={formResponses}

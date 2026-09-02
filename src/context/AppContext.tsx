@@ -98,11 +98,142 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const LOCAL_STORAGE_KEY_FORMS = 'gradient_forms_v1_forms';
-const LOCAL_STORAGE_KEY_RESPONSES = 'gradient_forms_v1_responses';
-const LOCAL_STORAGE_KEY_WORKSPACE = 'gradient_forms_v1_workspace';
-const LOCAL_STORAGE_KEY_INVITES = 'gradient_forms_v1_invites';
-const LOCAL_STORAGE_KEY_ACTIVITIES = 'gradient_forms_v1_activities';
+export const STORAGE_KEYS = {
+  FORMS: 'gradient_forms_v1_forms',
+  RESPONSES: 'gradient_forms_v1_responses',
+  WORKSPACE: 'gradient_forms_v1_workspace',
+  INVITES: 'gradient_forms_v1_invites',
+  ACTIVITIES: 'gradient_forms_v1_activities'
+};
+
+export const LEGACY_STORAGE_KEYS = {
+  FORMS: ['gradient_forms_data', 'gradient_forms_forms'],
+  RESPONSES: ['gradient_forms_responses', 'gradient_responses_data'],
+  WORKSPACE: ['gradient_forms_workspace', 'gradient_workspace_data']
+};
+
+/**
+ * Non-destructive loader for workspace forms.
+ * Safely recovers data across primary and legacy keys without deleting user forms.
+ * A fresh, empty workspace returns [] without injecting any automatic demo/seed forms.
+ */
+export function loadPersistedForms(): Form[] {
+  const formMap = new Map<string, Form>();
+
+  // 1. Recover from compatible legacy storage keys first
+  for (const key of LEGACY_STORAGE_KEYS.FORMS) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((f: any) => {
+            if (f && f.id && typeof f.id === 'string') {
+              formMap.set(f.id, ensureFormDefaults(f));
+            }
+          });
+        }
+      }
+    } catch (e) {
+      console.warn(`[Storage] Legacy key recovery skipped for ${key}:`, e);
+    }
+  }
+
+  // 2. Primary storage key takes precedence
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.FORMS);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        parsed.forEach((f: any) => {
+          if (f && f.id && typeof f.id === 'string') {
+            formMap.set(f.id, ensureFormDefaults(f));
+          }
+        });
+      }
+    }
+  } catch (e) {
+    console.warn('[Storage] Primary forms load error:', e);
+  }
+
+  return Array.from(formMap.values());
+}
+
+/**
+ * Non-destructive loader for form responses.
+ */
+export function loadPersistedResponses(): FormResponse[] {
+  const respMap = new Map<string, FormResponse>();
+
+  for (const key of LEGACY_STORAGE_KEYS.RESPONSES) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((r: any) => {
+            if (r && r.id && typeof r.id === 'string') {
+              respMap.set(r.id, r);
+            }
+          });
+        }
+      }
+    } catch (e) {
+      console.warn(`[Storage] Legacy responses recovery skipped for ${key}:`, e);
+    }
+  }
+
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.RESPONSES);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        parsed.forEach((r: any) => {
+          if (r && r.id && typeof r.id === 'string') {
+            respMap.set(r.id, r);
+          }
+        });
+      }
+    }
+  } catch (e) {
+    console.warn('[Storage] Primary responses load error:', e);
+  }
+
+  return Array.from(respMap.values());
+}
+
+/**
+ * Non-destructive loader for workspace and user profile data.
+ */
+export function loadPersistedWorkspace(): Workspace {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.WORKSPACE);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && Array.isArray(parsed.members)) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.warn('[Storage] Primary workspace load error:', e);
+  }
+
+  for (const key of LEGACY_STORAGE_KEYS.WORKSPACE) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object' && Array.isArray(parsed.members)) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.warn(`[Storage] Legacy workspace recovery skipped for ${key}:`, e);
+    }
+  }
+
+  return INITIAL_WORKSPACE;
+}
 
 export const ensureFormDefaults = (form: Form): Form => {
   if (!form) return form;
@@ -153,49 +284,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activeView, setActiveView] = useState<ActiveView>('dashboard');
   const [activeFormId, setActiveFormId] = useState<string | null>(null);
   
-  const [forms, setForms] = useState<Form[]>(() => {
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY_FORMS);
-    if (saved) {
-      try {
-        const parsed: Form[] = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          // Safe one-time & persistent migration: Filter out ONLY known seed/demo form IDs by exact stable ID
-          const userForms = parsed.filter(f => !KNOWN_SEED_FORM_IDS.has(f.id));
-          localStorage.setItem(LOCAL_STORAGE_KEY_FORMS, JSON.stringify(userForms));
-          return userForms.map(ensureFormDefaults);
-        }
-      } catch (e) { console.error(e); }
-    }
-    // Fresh workspace starts with 0 forms
-    return [];
-  });
-
-  const [responses, setResponses] = useState<FormResponse[]>(() => {
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY_RESPONSES);
-    if (saved) {
-      try {
-        const parsed: FormResponse[] = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          // Filter out responses belonging to known seed forms
-          const userResponses = parsed.filter(r => !KNOWN_SEED_FORM_IDS.has(r.formId));
-          localStorage.setItem(LOCAL_STORAGE_KEY_RESPONSES, JSON.stringify(userResponses));
-          return userResponses;
-        }
-      } catch (e) { console.error(e); }
-    }
-    return [];
-  });
-
-  const [workspace, setWorkspace] = useState<Workspace>(() => {
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY_WORKSPACE);
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { console.error(e); }
-    }
-    return INITIAL_WORKSPACE;
-  });
+  const [forms, setForms] = useState<Form[]>(() => loadPersistedForms());
+  const [responses, setResponses] = useState<FormResponse[]>(() => loadPersistedResponses());
+  const [workspace, setWorkspace] = useState<Workspace>(() => loadPersistedWorkspace());
 
   const [invitations, setInvitations] = useState<WorkspaceInvite[]>(() => {
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY_INVITES);
+    const saved = localStorage.getItem(STORAGE_KEYS.INVITES);
     if (saved) {
       try { return JSON.parse(saved); } catch (e) { console.error(e); }
     }
@@ -203,7 +297,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [activities, setActivities] = useState<WorkspaceActivity[]>(() => {
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY_ACTIVITIES);
+    const saved = localStorage.getItem(STORAGE_KEYS.ACTIVITIES);
     if (saved) {
       try { return JSON.parse(saved); } catch (e) { console.error(e); }
     }
@@ -241,23 +335,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEY_FORMS, JSON.stringify(forms));
+    localStorage.setItem(STORAGE_KEYS.FORMS, JSON.stringify(forms));
   }, [forms]);
 
   useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEY_RESPONSES, JSON.stringify(responses));
+    localStorage.setItem(STORAGE_KEYS.RESPONSES, JSON.stringify(responses));
   }, [responses]);
 
   useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEY_WORKSPACE, JSON.stringify(workspace));
+    localStorage.setItem(STORAGE_KEYS.WORKSPACE, JSON.stringify(workspace));
   }, [workspace]);
 
   useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEY_INVITES, JSON.stringify(invitations));
+    localStorage.setItem(STORAGE_KEYS.INVITES, JSON.stringify(invitations));
   }, [invitations]);
 
   useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEY_ACTIVITIES, JSON.stringify(activities));
+    localStorage.setItem(STORAGE_KEYS.ACTIVITIES, JSON.stringify(activities));
   }, [activities]);
 
   const logActivity = (action: string, targetName: string) => {
