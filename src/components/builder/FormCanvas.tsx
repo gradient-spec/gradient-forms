@@ -553,7 +553,7 @@ export const FormCanvas: React.FC<FormCanvasProps> = ({
           title="Save all changes and return to Forms workspace"
         >
           <Save className="w-4 h-4 text-cyan-300" />
-          <span>Save Form & Go to Forms Panel</span>
+          <span>Save</span>
         </button>
       </div>
     </div>
