@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { DEFAULT_AVATAR } from '../../data/seedData';
 import { Search } from 'lucide-react';
 import { CommandPalette } from '../ui/CommandPalette';
 import { GradientLogo } from '../ui/GradientLogo';
@@ -54,9 +55,9 @@ export const Header: React.FC<{ onCreateFormClick: () => void }> = () => {
             title={`${currentUser.name} (${currentUser.role}) — Settings`}
           >
             <img
-              src={currentUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80'}
+              src={currentUser.avatar || DEFAULT_AVATAR}
               alt={currentUser.name}
-              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover border border-[#2A3647] group-hover:border-[#38BDF8] transition-colors"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover border border-[#2A3647] group-hover:border-[#38BDF8] transition-colors bg-[#1A2332]"
             />
           </button>
         </div>

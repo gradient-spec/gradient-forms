@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
+import { DEFAULT_AVATAR } from '../../data/seedData';
 import {
   User,
   Check,
@@ -20,8 +21,10 @@ import {
   Edit3,
   ShieldCheck,
   Settings as SettingsIcon,
-  Lock,
-  Sparkles
+  Maximize2,
+  Minimize2,
+  RefreshCw,
+  Trash2
 } from 'lucide-react';
 import { IntegrationDetailModal, IntegrationType } from '../integrations/IntegrationDetailModal';
 import {
@@ -32,15 +35,6 @@ import {
   ZapierCard,
   WebhookCard
 } from '../cards/IntegrationVisualCards';
-
-const PRESET_AVATARS = [
-  { id: 'av-1', name: 'Alex', url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80' },
-  { id: 'av-2', name: 'Elena', url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=250&q=80' },
-  { id: 'av-3', name: 'David', url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=250&q=80' },
-  { id: 'av-4', name: 'Sarah', url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=250&q=80' },
-  { id: 'av-5', name: 'Marcus', url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=250&q=80' },
-  { id: 'av-6', name: 'Aaliyah', url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=250&q=80' },
-];
 
 export const SettingsView: React.FC = () => {
   const {
@@ -75,7 +69,7 @@ export const SettingsView: React.FC = () => {
   // Profile Edit fields
   const [editName, setEditName] = useState(currentUser.name);
   const [editEmail, setEditEmail] = useState(currentUser.email);
-  const [editAvatar, setEditAvatar] = useState(currentUser.avatar || PRESET_AVATARS[0].url);
+  const [editAvatar, setEditAvatar] = useState(currentUser.avatar || DEFAULT_AVATAR);
   const [showUrlInput, setShowUrlInput] = useState(false);
 
   // Workspace Edit fields
@@ -90,14 +84,17 @@ export const SettingsView: React.FC = () => {
   // Integrations state
   const [selectedIntegration, setSelectedIntegration] = useState<IntegrationType>(null);
 
-  // Cropper Modal State
+  // High-Precision Cropper Modal State
   const [isCropperOpen, setIsCropperOpen] = useState(false);
   const [cropSrc, setCropSrc] = useState<string>('');
+  const [imgDimensions, setImgDimensions] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
   const [zoom, setZoom] = useState(1.0);
   const [rotation, setRotation] = useState(0);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+  const cropImageRef = useRef<HTMLImageElement | null>(null);
 
   // Ensure default dark theme
   useEffect(() => {
@@ -110,9 +107,7 @@ export const SettingsView: React.FC = () => {
   useEffect(() => {
     setEditName(currentUser.name);
     setEditEmail(currentUser.email);
-    if (currentUser.avatar) {
-      setEditAvatar(currentUser.avatar);
-    }
+    setEditAvatar(currentUser.avatar || DEFAULT_AVATAR);
   }, [currentUser]);
 
   // Sync workspace state
@@ -120,7 +115,7 @@ export const SettingsView: React.FC = () => {
     setEditWorkspaceName(workspace.name);
   }, [workspace.name]);
 
-  // Handle local PFP Image File Upload -> Opens Interactive Cropper Modal
+  // Handle local Image File Upload -> Measures image & Opens Cropper
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -133,11 +128,17 @@ export const SettingsView: React.FC = () => {
     const reader = new FileReader();
     reader.onloadend = () => {
       if (typeof reader.result === 'string') {
-        setCropSrc(reader.result);
-        setZoom(1.0);
-        setRotation(0);
-        setOffset({ x: 0, y: 0 });
-        setIsCropperOpen(true);
+        const dataUrl = reader.result;
+        const testImg = new Image();
+        testImg.onload = () => {
+          setImgDimensions({ width: testImg.naturalWidth || testImg.width, height: testImg.naturalHeight || testImg.height });
+          setCropSrc(dataUrl);
+          setZoom(1.0);
+          setRotation(0);
+          setOffset({ x: 0, y: 0 });
+          setIsCropperOpen(true);
+        };
+        testImg.src = dataUrl;
       }
     };
     reader.readAsDataURL(file);
@@ -145,37 +146,107 @@ export const SettingsView: React.FC = () => {
   };
 
   const handleOpenCropperForCurrent = () => {
-    if (!editAvatar) return;
-    setCropSrc(editAvatar);
-    setZoom(1.0);
-    setRotation(0);
-    setOffset({ x: 0, y: 0 });
-    setIsCropperOpen(true);
+    const src = editAvatar && editAvatar !== DEFAULT_AVATAR ? editAvatar : DEFAULT_AVATAR;
+    const testImg = new Image();
+    testImg.onload = () => {
+      setImgDimensions({ width: testImg.naturalWidth || testImg.width, height: testImg.naturalHeight || testImg.height });
+      setCropSrc(src);
+      setZoom(1.0);
+      setRotation(0);
+      setOffset({ x: 0, y: 0 });
+      setIsCropperOpen(true);
+    };
+    testImg.src = src;
   };
 
+  // Fit to frame / Fit to circle
+  const handleFit = () => {
+    setZoom(1.0);
+    setOffset({ x: 0, y: 0 });
+    setRotation(0);
+  };
+
+  // Fill / Cover frame
+  const handleFill = () => {
+    if (imgDimensions.width && imgDimensions.height) {
+      const maxDim = Math.max(imgDimensions.width, imgDimensions.height);
+      const minDim = Math.min(imgDimensions.width, imgDimensions.height);
+      const fillRatio = maxDim / (minDim || 1);
+      setZoom(Math.min(3.0, Math.max(1.0, fillRatio)));
+    } else {
+      setZoom(1.5);
+    }
+    setOffset({ x: 0, y: 0 });
+  };
+
+  // Mouse / Touch Dragging Handlers
   const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
     setIsDragging(true);
     setDragStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      setIsDragging(true);
+      setDragStart({ x: e.touches[0].clientX - offset.x, y: e.touches[0].clientY - offset.y });
+    }
+  };
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isDragging) return;
     setOffset({
       x: e.clientX - dragStart.x,
       y: e.clientY - dragStart.y
     });
-  };
+  }, [isDragging, dragStart]);
 
-  const handleMouseUp = () => {
+  const handleTouchMove = useCallback((e: TouchEvent) => {
+    if (!isDragging || e.touches.length !== 1) return;
+    setOffset({
+      x: e.touches[0].clientX - dragStart.x,
+      y: e.touches[0].clientY - dragStart.y
+    });
+  }, [isDragging, dragStart]);
+
+  const handleMouseUp = useCallback(() => {
     setIsDragging(false);
+  }, []);
+
+  // Global drag listeners for fluid panning even when pointer moves outside container
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      window.addEventListener('touchmove', handleTouchMove);
+      window.addEventListener('touchend', handleMouseUp);
+    } else {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleMouseUp);
+    };
+  }, [isDragging, handleMouseMove, handleTouchMove, handleMouseUp]);
+
+  // Wheel zoom
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY * -0.002;
+    setZoom(prev => Math.min(4.0, Math.max(0.2, prev + delta)));
   };
 
+  // High-Precision Pixel-Perfect Canvas Export
   const handleApplyCrop = () => {
     const canvas = document.createElement('canvas');
-    const size = 300;
-    canvas.width = size;
-    canvas.height = size;
+    const outSize = 400;
+    canvas.width = outSize;
+    canvas.height = outSize;
     const ctx = canvas.getContext('2d');
 
     if (!ctx) return;
@@ -183,28 +254,39 @@ export const SettingsView: React.FC = () => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
-      ctx.clearRect(0, 0, size, size);
-      ctx.save();
-      ctx.translate(size / 2, size / 2);
+      ctx.clearRect(0, 0, outSize, outSize);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+
+      // Clip output to crisp circle
+      ctx.beginPath();
+      ctx.arc(outSize / 2, outSize / 2, outSize / 2, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.clip();
+
+      // Transform
+      ctx.translate(outSize / 2, outSize / 2);
       ctx.rotate((rotation * Math.PI) / 180);
 
-      const minDimension = Math.min(img.width, img.height);
-      const baseScale = size / minDimension;
-      const finalScale = baseScale * zoom;
+      const CROP_DIAMETER = 220;
+      const outputMultiplier = outSize / CROP_DIAMETER;
+      const maxDim = Math.max(img.naturalWidth || img.width, img.naturalHeight || img.height) || 1;
+      const baseScale = CROP_DIAMETER / maxDim;
+      const finalScale = baseScale * zoom * outputMultiplier;
 
-      ctx.scale(finalScale, finalScale);
+      const drawW = (img.naturalWidth || img.width) * finalScale;
+      const drawH = (img.naturalHeight || img.height) * finalScale;
+      const drawX = (offset.x * outputMultiplier) - (drawW / 2);
+      const drawY = (offset.y * outputMultiplier) - (drawH / 2);
 
-      const drawX = -img.width / 2 + offset.x / finalScale;
-      const drawY = -img.height / 2 + offset.y / finalScale;
+      ctx.drawImage(img, drawX, drawY, drawW, drawH);
 
-      ctx.drawImage(img, drawX, drawY);
-      ctx.restore();
-
-      const croppedDataUrl = canvas.toDataURL('image/png');
+      const croppedDataUrl = canvas.toDataURL('image/png', 0.95);
       setEditAvatar(croppedDataUrl);
+      updateUserProfile({ avatar: croppedDataUrl });
       setIsCropperOpen(false);
 
-      showToast('Profile Picture Cropped ✂️', 'Click "Save Changes" to apply.', 'info');
+      showToast('Profile Picture Updated 📸', 'Your photo has been cropped and applied successfully.', 'success');
     };
     img.src = cropSrc;
   };
@@ -228,6 +310,12 @@ export const SettingsView: React.FC = () => {
     });
 
     setIsEditProfileOpen(false);
+  };
+
+  const handleResetToDefaultAvatar = () => {
+    setEditAvatar(DEFAULT_AVATAR);
+    updateUserProfile({ avatar: DEFAULT_AVATAR });
+    showToast('Default Avatar Restored', 'Profile picture reset to default avatar.', 'info');
   };
 
   const handleSaveWorkspace = (e?: React.FormEvent) => {
@@ -264,6 +352,15 @@ export const SettingsView: React.FC = () => {
     setActiveView('dashboard');
   };
 
+  // Compute CSS sizing for interactive viewfinder
+  const CROP_DIAMETER = 220;
+  const naturalW = imgDimensions.width || 220;
+  const naturalH = imgDimensions.height || 220;
+  const maxDim = Math.max(naturalW, naturalH) || 220;
+  const baseScale = CROP_DIAMETER / maxDim;
+  const previewW = naturalW * baseScale * zoom;
+  const previewH = naturalH * baseScale * zoom;
+
   return (
     <div className="text-slate-100 pb-24">
       {/* Top Edge Sub-header Navigation Bar */}
@@ -299,7 +396,7 @@ export const SettingsView: React.FC = () => {
             Admin Profile &amp; Settings
           </h1>
           <p className="text-xs md:text-sm text-slate-400 mt-1">
-            Manage single-owner identity, active workspace, and system integrations.
+            Manage single-owner identity, profile picture, workspace settings, and system integrations.
           </p>
         </div>
 
@@ -352,12 +449,20 @@ export const SettingsView: React.FC = () => {
 
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
                 <div className="flex items-center gap-4">
-                  <div className="relative shrink-0">
+                  <div className="relative shrink-0 group">
                     <img
-                      src={currentUser.avatar || PRESET_AVATARS[0].url}
+                      src={currentUser.avatar || DEFAULT_AVATAR}
                       alt={currentUser.name}
-                      className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl object-cover border-2 border-[#2A3647]"
+                      className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-[#2A3647] shadow-md bg-[#1A2332]"
                     />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="absolute inset-0 rounded-2xl bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white cursor-pointer"
+                      title="Upload New Photo"
+                    >
+                      <Upload className="w-5 h-5 text-[#38BDF8]" />
+                    </button>
                   </div>
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -373,19 +478,30 @@ export const SettingsView: React.FC = () => {
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditName(currentUser.name);
-                    setEditEmail(currentUser.email);
-                    setEditAvatar(currentUser.avatar || PRESET_AVATARS[0].url);
-                    setIsEditProfileOpen(true);
-                  }}
-                  className="self-start sm:self-center px-4 py-2 rounded-xl bg-[#1A2332] hover:bg-[#222C3D] border border-[#2A3647] hover:border-[#38BDF8]/60 text-slate-200 hover:text-white text-xs font-semibold shadow-xs transition-all duration-200 cursor-pointer flex items-center gap-2"
-                >
-                  <Edit3 className="w-3.5 h-3.5 text-[#38BDF8]" />
-                  <span>Edit Profile</span>
-                </button>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="px-3.5 py-2 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold shadow-xs transition-all duration-200 cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Upload Photo</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditName(currentUser.name);
+                      setEditEmail(currentUser.email);
+                      setEditAvatar(currentUser.avatar || DEFAULT_AVATAR);
+                      setIsEditProfileOpen(true);
+                    }}
+                    className="px-3.5 py-2 rounded-xl bg-[#1A2332] hover:bg-[#222C3D] border border-[#2A3647] hover:border-[#38BDF8]/60 text-slate-200 hover:text-white text-xs font-semibold shadow-xs transition-all duration-200 cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Edit3 className="w-3.5 h-3.5 text-[#38BDF8]" />
+                    <span>Edit Profile</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -530,6 +646,15 @@ export const SettingsView: React.FC = () => {
         )}
       </div>
 
+      {/* Hidden File Input for Image Upload */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileUpload}
+        accept="image/*"
+        className="hidden"
+      />
+
       {/* MODAL 1: EDIT PROFILE MODAL */}
       {isEditProfileOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
@@ -550,45 +675,54 @@ export const SettingsView: React.FC = () => {
 
             <form onSubmit={handleSaveProfile} className="space-y-4">
               {/* Avatar Section */}
-              <div className="space-y-3 p-3.5 rounded-xl bg-[#161D27] border border-[#2A3647]/60">
+              <div className="space-y-3 p-4 rounded-xl bg-[#161D27] border border-[#2A3647]/60">
                 <label className="block text-xs font-semibold text-slate-300">
-                  Profile Picture
+                  Profile Photo
                 </label>
 
                 <div className="flex items-center gap-4">
-                  <img
-                    src={editAvatar}
-                    alt={editName}
-                    className="w-14 h-14 rounded-xl object-cover border border-[#2A3647]"
-                  />
-                  <div className="flex flex-wrap items-center gap-2">
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      onChange={handleFileUpload}
-                      accept="image/*"
-                      className="hidden"
+                  <div className="relative shrink-0">
+                    <img
+                      src={editAvatar || DEFAULT_AVATAR}
+                      alt={editName}
+                      className="w-16 h-16 rounded-2xl object-cover border border-[#2A3647] bg-[#1A2332]"
                     />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="px-3 py-1.5 rounded-lg bg-[#1A2332] hover:bg-[#222C3D] border border-[#2A3647] text-xs font-semibold text-white flex items-center gap-1.5 cursor-pointer"
+                      className="px-3 py-1.5 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-xs font-semibold text-white flex items-center gap-1.5 cursor-pointer shadow-xs"
                     >
-                      <Upload className="w-3.5 h-3.5 text-[#38BDF8]" />
-                      <span>Upload</span>
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Upload New</span>
                     </button>
+
+                    {editAvatar && editAvatar !== DEFAULT_AVATAR && (
+                      <button
+                        type="button"
+                        onClick={handleOpenCropperForCurrent}
+                        className="px-3 py-1.5 rounded-lg bg-[#1A2332] hover:bg-[#222C3D] border border-[#2A3647] text-xs font-semibold text-cyan-300 flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Crop className="w-3.5 h-3.5" />
+                        <span>Crop / Resize</span>
+                      </button>
+                    )}
+
                     <button
                       type="button"
-                      onClick={handleOpenCropperForCurrent}
-                      className="px-3 py-1.5 rounded-lg bg-[#1A2332] hover:bg-[#222C3D] border border-[#2A3647] text-xs font-semibold text-cyan-300 flex items-center gap-1.5 cursor-pointer"
+                      onClick={handleResetToDefaultAvatar}
+                      className="px-3 py-1.5 rounded-lg bg-[#1A2332] hover:bg-[#222C3D] border border-[#2A3647] text-xs font-semibold text-slate-300 flex items-center gap-1.5 cursor-pointer"
+                      title="Reset to default icon"
                     >
-                      <Crop className="w-3.5 h-3.5" />
-                      <span>Crop</span>
+                      <Trash2 className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Default</span>
                     </button>
+
                     <button
                       type="button"
                       onClick={() => setShowUrlInput(!showUrlInput)}
-                      className="px-3 py-1.5 rounded-lg bg-[#1A2332] hover:bg-[#222C3D] border border-[#2A3647] text-xs font-semibold text-slate-300 flex items-center gap-1.5 cursor-pointer"
+                      className="px-3 py-1.5 rounded-lg bg-[#1A2332] hover:bg-[#222C3D] border border-[#2A3647] text-xs font-semibold text-slate-400 hover:text-slate-200 flex items-center gap-1.5 cursor-pointer"
                     >
                       <ImageIcon className="w-3.5 h-3.5" />
                       <span>{showUrlInput ? 'Hide URL' : 'URL Link'}</span>
@@ -597,37 +731,16 @@ export const SettingsView: React.FC = () => {
                 </div>
 
                 {showUrlInput && (
-                  <div className="pt-1">
+                  <div className="pt-2">
                     <input
                       type="url"
                       value={editAvatar}
                       onChange={(e) => setEditAvatar(e.target.value)}
-                      placeholder="https://example.com/avatar.jpg"
+                      placeholder="Paste image URL (e.g. https://example.com/avatar.jpg)"
                       className="w-full bg-[#121820] border border-[#2A3647] px-3 py-1.5 rounded-lg text-xs font-mono text-cyan-300 focus:outline-none focus:border-[#38BDF8]"
                     />
                   </div>
                 )}
-
-                {/* Preset Avatars */}
-                <div className="pt-1 space-y-1">
-                  <span className="text-[10px] font-mono text-slate-400 block">Preset Avatars:</span>
-                  <div className="flex items-center gap-2 overflow-x-auto pb-1">
-                    {PRESET_AVATARS.map((av) => (
-                      <button
-                        key={av.id}
-                        type="button"
-                        onClick={() => setEditAvatar(av.url)}
-                        className={`p-0.5 rounded-lg border transition-all shrink-0 cursor-pointer ${
-                          editAvatar === av.url
-                            ? 'border-[#38BDF8] ring-1 ring-[#38BDF8]/40'
-                            : 'border-[#2A3647] opacity-70 hover:opacity-100'
-                        }`}
-                      >
-                        <img src={av.url} alt={av.name} className="w-7 h-7 rounded-md object-cover" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </div>
 
               {/* Name Input */}
@@ -750,8 +863,8 @@ export const SettingsView: React.FC = () => {
           <div className="w-full max-w-md bg-[#121820] border border-[#2A3647] rounded-2xl p-6 space-y-5 shadow-2xl text-slate-100">
             <div className="flex items-center justify-between border-b border-[#2A3647]/80 pb-3">
               <div className="flex items-center gap-2">
-                <Lock className="w-4 h-4 text-emerald-400" />
-                <h3 className="text-base font-bold font-heading text-white">Change Admin Password</h3>
+                <KeyRound className="w-4 h-4 text-emerald-400" />
+                <h3 className="text-base font-bold font-heading text-white">Update Password</h3>
               </div>
               <button
                 type="button"
@@ -764,24 +877,28 @@ export const SettingsView: React.FC = () => {
 
             <form onSubmit={handleUpdatePassword} className="space-y-4">
               {passwordError && (
-                <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300">
+                <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs">
                   {passwordError}
                 </div>
               )}
 
               <div className="space-y-1">
-                <label className="block text-xs font-semibold text-slate-300">Current Password</label>
+                <label className="block text-xs font-semibold text-slate-300">
+                  Current Password
+                </label>
                 <input
                   type="password"
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   className="w-full bg-[#161D27] border border-[#2A3647] px-3.5 py-2 rounded-lg text-xs text-white focus:outline-none focus:border-[#38BDF8]"
-                  placeholder="••••••••••••"
+                  placeholder="Enter current password"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="block text-xs font-semibold text-slate-300">New Password</label>
+                <label className="block text-xs font-semibold text-slate-300">
+                  New Password <span className="text-rose-400">*</span>
+                </label>
                 <input
                   type="password"
                   required
@@ -793,7 +910,9 @@ export const SettingsView: React.FC = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="block text-xs font-semibold text-slate-300">Confirm New Password</label>
+                <label className="block text-xs font-semibold text-slate-300">
+                  Confirm New Password <span className="text-rose-400">*</span>
+                </label>
                 <input
                   type="password"
                   required
@@ -824,18 +943,19 @@ export const SettingsView: React.FC = () => {
         </div>
       )}
 
-      {/* INTERACTIVE AVATAR CROPPER MODAL */}
+      {/* HIGH-PRECISION INTERACTIVE AVATAR CROPPER MODAL */}
       {isCropperOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
-          <div className="w-full max-w-lg bg-[#121820] border border-[#2A3647] rounded-2xl p-6 space-y-6 relative shadow-2xl text-slate-100">
-            <div className="flex items-center justify-between border-b border-[#2A3647] pb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
+          <div className="w-full max-w-lg bg-[#121820] border border-[#2A3647] rounded-2xl p-5 sm:p-6 space-y-5 relative shadow-2xl text-slate-100">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-[#2A3647] pb-3.5">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 rounded-xl bg-[#2563EB]/20 text-[#38BDF8] border border-[#2563EB]/40">
                   <Crop className="w-5 h-5 text-cyan-400" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold font-heading text-white">Resize &amp; Crop Profile Photo</h3>
-                  <p className="text-[11px] text-slate-400">Drag to reposition, zoom in/out, or rotate avatar.</p>
+                  <h3 className="text-base font-bold font-heading text-white">Adjust &amp; Crop Profile Photo</h3>
+                  <p className="text-[11px] text-slate-400">Drag to reposition • Scroll or use slider to zoom</p>
                 </div>
               </div>
               <button
@@ -847,88 +967,140 @@ export const SettingsView: React.FC = () => {
               </button>
             </div>
 
+            {/* Viewfinder Canvas & Controls Area */}
             <div className="flex flex-col sm:flex-row items-center gap-6">
-              <div className="relative w-72 h-72 rounded-2xl bg-black/50 border border-[#2A3647] overflow-hidden select-none flex items-center justify-center cursor-grab active:cursor-grabbing shadow-inner">
-                <div className="absolute inset-0 z-20 pointer-events-none border-[36px] border-black/70 rounded-3xl flex items-center justify-center">
-                  <div className="w-48 h-48 rounded-full border-2 border-cyan-400/80" />
-                </div>
-
-                <div className="absolute top-2 left-2 z-30 px-2 py-1 rounded bg-black/60 text-[10px] font-mono text-cyan-300 flex items-center gap-1 border border-[#2A3647]">
-                  <Move className="w-3 h-3" /> Drag to pan
-                </div>
-
+              {/* Interactive Viewfinder Box */}
+              <div
+                onMouseDown={handleMouseDown}
+                onTouchStart={handleTouchStart}
+                onWheel={handleWheel}
+                className="relative w-[280px] h-[280px] sm:w-[300px] sm:h-[300px] rounded-2xl bg-[#090D12] border border-[#2A3647] overflow-hidden select-none flex items-center justify-center cursor-grab active:cursor-grabbing shadow-inner shrink-0"
+              >
+                {/* Image layer */}
                 <div
-                  onMouseDown={handleMouseDown}
-                  onMouseMove={handleMouseMove}
-                  onMouseUp={handleMouseUp}
-                  onMouseLeave={handleMouseUp}
-                  className="w-full h-full flex items-center justify-center"
+                  style={{
+                    position: 'absolute',
+                    width: `${previewW}px`,
+                    height: `${previewH}px`,
+                    transform: `translate(${offset.x}px, ${offset.y}px) rotate(${rotation}deg)`,
+                    transition: isDragging ? 'none' : 'transform 0.05s ease-out',
+                    transformOrigin: 'center center'
+                  }}
+                  className="pointer-events-none flex items-center justify-center"
                 >
                   <img
+                    ref={cropImageRef}
                     src={cropSrc}
-                    alt="Crop workspace"
-                    style={{
-                      transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom}) rotate(${rotation}deg)`,
-                      transition: isDragging ? 'none' : 'transform 0.1s ease-out',
-                      maxHeight: '100%',
-                      maxWidth: '100%',
-                      objectFit: 'contain'
-                    }}
+                    alt="Crop preview"
+                    className="w-full h-full object-contain pointer-events-none"
                     draggable={false}
                   />
                 </div>
+
+                {/* Dark Mask with Circular Viewport cutout */}
+                <svg className="absolute inset-0 w-full h-full pointer-events-none z-20">
+                  <defs>
+                    <mask id="crop-circle-mask">
+                      <rect width="100%" height="100%" fill="white" />
+                      <circle cx="50%" cy="50%" r="110" fill="black" />
+                    </mask>
+                  </defs>
+                  <rect width="100%" height="100%" fill="rgba(6, 9, 14, 0.78)" mask="url(#crop-circle-mask)" />
+                  {/* Circular Boundary Ring */}
+                  <circle cx="50%" cy="50%" r="110" fill="none" stroke="#38BDF8" strokeWidth="2" strokeDasharray="6 3" className="opacity-80" />
+                </svg>
+
+                {/* Pan Overlay Indicator */}
+                <div className="absolute top-2.5 left-2.5 z-30 px-2 py-1 rounded bg-black/70 text-[10px] font-mono text-cyan-300 flex items-center gap-1 border border-[#2A3647] pointer-events-none">
+                  <Move className="w-3 h-3" /> Drag to pan
+                </div>
               </div>
 
+              {/* Adjustments & Toolbar */}
               <div className="space-y-4 w-full flex-1">
+                {/* Zoom Controls */}
                 <div className="space-y-1.5">
                   <div className="flex justify-between text-xs text-slate-300">
-                    <span>Zoom</span>
-                    <span className="font-mono text-cyan-400">{Math.round(zoom * 100)}%</span>
+                    <span className="font-semibold flex items-center gap-1.5">
+                      <ZoomIn className="w-3.5 h-3.5 text-[#38BDF8]" /> Zoom
+                    </span>
+                    <span className="font-mono text-cyan-400 font-bold">{Math.round(zoom * 100)}%</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => setZoom(prev => Math.max(0.5, prev - 0.1))}
+                      onClick={() => setZoom(prev => Math.max(0.2, Number((prev - 0.15).toFixed(2))))}
                       className="p-2 rounded-lg bg-[#161D27] hover:bg-[#1A2332] text-slate-300 border border-[#2A3647] cursor-pointer"
+                      title="Zoom Out"
                     >
                       <ZoomOut className="w-4 h-4" />
                     </button>
                     <input
                       type="range"
-                      min="0.5"
-                      max="3"
+                      min="0.2"
+                      max="4.0"
                       step="0.05"
                       value={zoom}
                       onChange={(e) => setZoom(parseFloat(e.target.value))}
-                      className="w-full accent-cyan-400 cursor-pointer"
+                      className="w-full accent-[#38BDF8] cursor-pointer"
                     />
                     <button
                       type="button"
-                      onClick={() => setZoom(prev => Math.min(3, prev + 0.1))}
+                      onClick={() => setZoom(prev => Math.min(4.0, Number((prev + 0.15).toFixed(2))))}
                       className="p-2 rounded-lg bg-[#161D27] hover:bg-[#1A2332] text-slate-300 border border-[#2A3647] cursor-pointer"
+                      title="Zoom In"
                     >
                       <ZoomIn className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <div className="flex justify-between text-xs text-slate-300">
-                    <span>Rotation</span>
-                    <span className="font-mono text-cyan-400">{rotation}°</span>
-                  </div>
+                {/* Quick Fit, Fill & Rotate Actions */}
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={handleFit}
+                    className="py-2 px-2 rounded-xl bg-[#161D27] hover:bg-[#1A2332] text-xs font-semibold text-slate-200 border border-[#2A3647] flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                    title="Fit entire image within circle"
+                  >
+                    <Minimize2 className="w-3.5 h-3.5 text-[#38BDF8]" />
+                    <span>Fit</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleFill}
+                    className="py-2 px-2 rounded-xl bg-[#161D27] hover:bg-[#1A2332] text-xs font-semibold text-slate-200 border border-[#2A3647] flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                    title="Fill circle frame"
+                  >
+                    <Maximize2 className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Fill</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => setRotation(prev => (prev + 90) % 360)}
-                    className="w-full py-2 rounded-xl bg-[#161D27] hover:bg-[#1A2332] text-xs font-semibold text-cyan-300 border border-[#2A3647] flex items-center justify-center gap-2 cursor-pointer"
+                    className="py-2 px-2 rounded-xl bg-[#161D27] hover:bg-[#1A2332] text-xs font-semibold text-cyan-300 border border-[#2A3647] flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                    title="Rotate 90 degrees"
                   >
-                    <RotateCw className="w-3.5 h-3.5" /> Rotate 90°
+                    <RotateCw className="w-3.5 h-3.5" />
+                    <span>90°</span>
                   </button>
                 </div>
+
+                {/* Reset helper */}
+                <button
+                  type="button"
+                  onClick={handleFit}
+                  className="w-full py-1.5 text-center text-[11px] text-slate-400 hover:text-slate-200 flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                >
+                  <RefreshCw className="w-3 h-3" /> Reset Alignment
+                </button>
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-3 border-t border-[#2A3647]">
+            {/* Bottom Modal Actions */}
+            <div className="flex items-center justify-between pt-3.5 border-t border-[#2A3647]">
               <button
                 type="button"
                 onClick={() => setIsCropperOpen(false)}
@@ -941,7 +1113,8 @@ export const SettingsView: React.FC = () => {
                 onClick={handleApplyCrop}
                 className="px-5 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer"
               >
-                <Check className="w-4 h-4" /> Apply &amp; Use Photo
+                <Check className="w-4 h-4" />
+                <span>Apply &amp; Save Photo</span>
               </button>
             </div>
           </div>

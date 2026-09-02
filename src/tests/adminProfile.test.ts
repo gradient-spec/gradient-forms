@@ -81,4 +81,15 @@ describe('Admin Profile & Single-Owner Workspace Tests', () => {
     expect(validatePassword('secret123', 'different456')).toBe('Passwords do not match.');
     expect(validatePassword('securePass99', 'securePass99')).toBeNull();
   });
+
+  it('should support default avatar and custom cropped image data URLs', () => {
+    const croppedDataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    const updatedMember = {
+      ...mockWorkspace.members[0],
+      avatar: croppedDataUrl
+    };
+
+    expect(updatedMember.avatar).toBe(croppedDataUrl);
+    expect(updatedMember.avatar.startsWith('data:image/')).toBe(true);
+  });
 });

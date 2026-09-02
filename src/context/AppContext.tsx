@@ -1013,18 +1013,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateUserProfile = (updates: { name?: string; email?: string; avatar?: string }) => {
     setWorkspace(prev => {
-      const updatedMembers = prev.members.map(m => {
-        if (m.role === 'owner' || m.id === currentUser.id) {
-          return {
-            ...m,
-            name: updates.name !== undefined && updates.name.trim() !== '' ? updates.name.trim() : m.name,
-            email: updates.email !== undefined && updates.email.trim() !== '' ? updates.email.trim() : m.email,
-            avatar: updates.avatar !== undefined ? updates.avatar : m.avatar
-          };
-        }
-        return m;
-      });
-      return { ...prev, members: updatedMembers };
+      const members = prev.members && prev.members.length > 0 ? prev.members : [DEFAULT_CURRENT_USER];
+      const hasOwner = members.some(m => m.role === 'owner' || m.id === currentUser.id);
+
+      const updatedMembers = hasOwner
+        ? members.map(m => {
+            if (m.role === 'owner' || m.id === currentUser.id) {
+              return {
+                ...m,
+                name: updates.name !== undefined && updates.name.trim() !== '' ? updates.name.trim() : m.name,
+                email: updates.email !== undefined && updates.email.trim() !== '' ? updates.email.trim() : m.email,
+                avatar: updates.avatar !== undefined ? updates.avatar : m.avatar
+              };
+            }
+            return m;
+          })
+        : [
+            {
+              ...DEFAULT_CURRENT_USER,
+              name: updates.name !== undefined && updates.name.trim() !== '' ? updates.name.trim() : DEFAULT_CURRENT_USER.name,
+              email: updates.email !== undefined && updates.email.trim() !== '' ? updates.email.trim() : DEFAULT_CURRENT_USER.email,
+              avatar: updates.avatar !== undefined ? updates.avatar : DEFAULT_CURRENT_USER.avatar
+            }
+          ];
+
+      const newWs = { ...prev, members: updatedMembers };
+      try {
+        localStorage.setItem(STORAGE_KEYS.WORKSPACE, JSON.stringify(newWs));
+      } catch (err) {
+        console.warn('Failed to immediately save workspace to localStorage:', err);
+      }
+      return newWs;
     });
     logActivity('Updated user profile credentials & avatar', workspace.name);
     showToast('Profile Updated 👤', 'Your profile details and profile picture have been updated.', 'success');
