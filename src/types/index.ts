@@ -25,6 +25,7 @@ export interface QuestionOption {
   label: string;
   score?: number;
   isCorrect?: boolean;
+  destinationSectionId?: string; // Target section ID or '__SUBMIT__' to end form
 }
 
 export interface ValidationRule {
@@ -57,6 +58,7 @@ export interface Question {
   helpText?: string;
   required: boolean;
   options?: QuestionOption[];
+  enableBranching?: boolean; // Toggles 'Go to section based on answer'
   scaleMin?: number;
   scaleMax?: number;
   scaleMinLabel?: string;

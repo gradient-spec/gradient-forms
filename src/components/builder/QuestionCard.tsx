@@ -33,10 +33,12 @@ import {
   Italic,
   Underline,
   Image as ImageIcon,
-  PlaySquare
+  PlaySquare,
+  GitBranch
 } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { ACTION_CONTINUE_NEXT, ACTION_SUBMIT_FORM } from '../../utils/branchingEngine';
 
 export const QUESTION_TYPES: { type: QuestionType; label: string; icon: React.FC<{ className?: string }> }[] = [
   { type: 'short_answer', label: 'Short Answer', icon: Type },
@@ -289,6 +291,15 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     onUpdate({ options: updated });
   };
 
+  const handleUpdateOptionDestination = (optId: string, destinationSectionId: string) => {
+    const updated = (question.options || []).map(opt =>
+      opt.id === optId
+        ? { ...opt, destinationSectionId: destinationSectionId === ACTION_CONTINUE_NEXT ? undefined : destinationSectionId }
+        : opt
+    );
+    onUpdate({ options: updated });
+  };
+
   const handleDeleteOption = (optId: string) => {
     const updated = (question.options || []).filter(opt => opt.id !== optId);
     onUpdate({ options: updated });
@@ -428,6 +439,25 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                 })}
               </select>
             </div>
+          )}
+
+          {['multiple_choice', 'dropdown'].includes(question.type) && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onUpdate({ enableBranching: !question.enableBranching });
+              }}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer ${
+                question.enableBranching
+                  ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 shadow-xs'
+                  : 'bg-[#121820] hover:bg-[#1A2332] text-slate-400 hover:text-white border-[#2A3647]'
+              }`}
+              title="Go to section based on answer (Conditional Section Routing)"
+            >
+              <GitBranch className="w-3.5 h-3.5 text-cyan-400" />
+              <span>{question.enableBranching ? 'Routing Active' : 'Section Routing'}</span>
+            </button>
           )}
 
           {isQuizMode && question.points && (
@@ -824,8 +854,42 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                       handleAddOption();
                     }
                   }}
-                  className="flex-1 bg-[#121820] px-3 py-1.5 rounded-lg text-xs text-slate-200 border border-[#2A3647] focus:border-[#2563EB] focus:outline-none"
+                  className="flex-1 bg-[#121820] px-3 py-1.5 rounded-lg text-xs text-slate-200 border border-[#2A3647] focus:border-[#2563EB] focus:outline-none min-w-[120px]"
                 />
+
+                {/* Conditional Destination Section Selector */}
+                {question.enableBranching && ['multiple_choice', 'dropdown'].includes(question.type) && (
+                  <div
+                    className="flex items-center gap-1.5 shrink-0"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <GitBranch className="w-3 h-3 text-cyan-400 shrink-0" />
+                    <select
+                      value={opt.destinationSectionId || ACTION_CONTINUE_NEXT}
+                      onChange={(e) => handleUpdateOptionDestination(opt.id, e.target.value)}
+                      className={`px-2 py-1 rounded-lg text-[10px] font-mono border focus:outline-none cursor-pointer max-w-[170px] truncate ${
+                        opt.destinationSectionId && opt.destinationSectionId !== ACTION_CONTINUE_NEXT && opt.destinationSectionId !== ACTION_SUBMIT_FORM && !(sections || []).some(s => s.id === opt.destinationSectionId)
+                          ? 'bg-rose-500/15 text-rose-300 border-rose-500/40'
+                          : opt.destinationSectionId && opt.destinationSectionId !== ACTION_CONTINUE_NEXT
+                          ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/40 font-bold'
+                          : 'bg-[#121820] text-slate-400 border-[#2A3647]'
+                      }`}
+                      title="Select section to navigate to when this answer is chosen"
+                    >
+                      <option value={ACTION_CONTINUE_NEXT} className="bg-[#121820] text-slate-300">
+                        Continue to next section
+                      </option>
+                      {(sections || []).map((sec, sIdx) => (
+                        <option key={sec.id} value={sec.id} className="bg-[#121820] text-slate-200">
+                          Go to Sec {sIdx + 1}: {sec.title || `Section ${sIdx + 1}`}
+                        </option>
+                      ))}
+                      <option value={ACTION_SUBMIT_FORM} className="bg-[#121820] text-amber-300 font-bold">
+                        Submit form (End)
+                      </option>
+                    </select>
+                  </div>
+                )}
 
                 {isQuizMode && (
                   <button

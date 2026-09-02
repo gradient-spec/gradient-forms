@@ -5,6 +5,12 @@ import { CheckCircle2, Award, Star, ArrowRight, ArrowLeft, RefreshCw, Upload, Fi
 import confetti from 'canvas-confetti';
 import { evaluateLogicRule } from '../../utils/logicEvaluator';
 import { getEffectiveFormStatus, formatExpiryDescription } from '../../utils/formStatus';
+import {
+  resolveNextSectionDestination,
+  getReachableQuestions,
+  getBranchingQuestionForSection,
+  ACTION_SUBMIT_FORM
+} from '../../utils/branchingEngine';
 
 interface PublishedFormViewProps {
   form: Form;
@@ -72,7 +78,6 @@ export const PublishedFormView: React.FC<PublishedFormViewProps> = ({ form, isPr
     return null;
   });
 
-  const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [startTime] = useState<number>(Date.now());
   const [quizScore, setQuizScore] = useState<{ score: number; max: number } | null>(null);
@@ -119,9 +124,18 @@ export const PublishedFormView: React.FC<PublishedFormViewProps> = ({ form, isPr
     : [{ id: 'sec-main', title: 'Main Section' }];
 
   const visibleSections = rawSections.filter(isSectionVisible);
-  const activeSectionIndex = Math.min(currentSectionIndex, Math.max(0, visibleSections.length - 1));
-  const currentSection = visibleSections[activeSectionIndex] || rawSections[0];
-  const isFinalSection = activeSectionIndex >= visibleSections.length - 1;
+
+  const [sectionHistory, setSectionHistory] = useState<string[]>(() => [
+    visibleSections[0]?.id || rawSections[0].id
+  ]);
+
+  const currentSectionId = sectionHistory[sectionHistory.length - 1] || visibleSections[0]?.id || rawSections[0].id;
+  const currentSection = visibleSections.find(s => s.id === currentSectionId) || rawSections.find(s => s.id === currentSectionId) || rawSections[0];
+  const activeSectionIndex = Math.max(0, visibleSections.findIndex(s => s.id === currentSection.id));
+
+  const nextDestinationInfo = resolveNextSectionDestination(form, currentSection.id, answers);
+  const isFinalSection = nextDestinationInfo.destinationSectionId === ACTION_SUBMIT_FORM ||
+    (!nextDestinationInfo.destinationSectionId && activeSectionIndex >= visibleSections.length - 1);
 
   const currentQuestions = form.questions.filter(
     q => q.sectionId === currentSection.id && isQuestionVisible(q)
@@ -234,6 +248,15 @@ export const PublishedFormView: React.FC<PublishedFormViewProps> = ({ form, isPr
       setDraftSavedTime(timeStr);
     }
 
+    // Invalidate stale future path when a branching question is changed
+    const branchingQ = getBranchingQuestionForSection(form, currentSection.id);
+    if (branchingQ && branchingQ.id === questionId) {
+      const currIdx = sectionHistory.indexOf(currentSection.id);
+      if (currIdx !== -1 && currIdx < sectionHistory.length - 1) {
+        setSectionHistory(prev => prev.slice(0, currIdx + 1));
+      }
+    }
+
     if (validationErrors[questionId]) {
       setValidationErrors(prev => {
         const updated = { ...prev };
@@ -258,15 +281,24 @@ export const PublishedFormView: React.FC<PublishedFormViewProps> = ({ form, isPr
       return;
     }
     setValidationErrors({});
-    if (activeSectionIndex < visibleSections.length - 1) {
-      setCurrentSectionIndex(activeSectionIndex + 1);
+
+    const nextDest = resolveNextSectionDestination(form, currentSection.id, answers);
+
+    if (nextDest.destinationSectionId === ACTION_SUBMIT_FORM) {
+      const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+      handleSubmit(fakeEvent);
+      return;
+    }
+
+    if (nextDest.destinationSectionId) {
+      setSectionHistory(prev => [...prev, nextDest.destinationSectionId as string]);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
   const handlePrevSection = () => {
-    if (activeSectionIndex > 0) {
-      setCurrentSectionIndex(activeSectionIndex - 1);
+    if (sectionHistory.length > 1) {
+      setSectionHistory(prev => prev.slice(0, prev.length - 1));
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
@@ -300,9 +332,9 @@ export const PublishedFormView: React.FC<PublishedFormViewProps> = ({ form, isPr
       }
     }
 
-    // Strictly validate all visible questions
-    const visibleQuestions = form.questions.filter(q => isQuestionVisible(q));
-    const isValid = validateQuestions(visibleQuestions);
+    // Strictly validate all reachable questions on the active path
+    const reachableQuestions = getReachableQuestions(form, answers, sectionHistory).filter(isQuestionVisible);
+    const isValid = validateQuestions(reachableQuestions);
     if (!isValid) {
       showToast?.('Required Questions Missing', 'Please fill in all required questions marked with * before submitting.', 'error');
       return;
@@ -429,7 +461,12 @@ export const PublishedFormView: React.FC<PublishedFormViewProps> = ({ form, isPr
         </div>
 
         <button
-          onClick={() => { setIsSubmitted(false); setAnswers({}); setCurrentSectionIndex(0); setHasAgreed(false); }}
+          onClick={() => {
+            setIsSubmitted(false);
+            setAnswers({});
+            setSectionHistory([visibleSections[0]?.id || rawSections[0].id]);
+            setHasAgreed(false);
+          }}
           className="inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-[#1A2332] hover:bg-[#222C3D] border border-[#2A3647] text-white text-xs font-medium transition-colors cursor-pointer"
         >
           <RefreshCw className="w-3.5 h-3.5 text-[#84A1C0]" />
@@ -519,10 +556,10 @@ export const PublishedFormView: React.FC<PublishedFormViewProps> = ({ form, isPr
     );
   }
 
-  const allVisibleQuestions = form.questions.filter(q => isQuestionVisible(q));
-  const answeredQuestionsCount = allVisibleQuestions.filter(q => isQuestionAnswered(q)).length;
-  const progressPercent = allVisibleQuestions.length > 0
-    ? Math.round((answeredQuestionsCount / allVisibleQuestions.length) * 100)
+  const reachableQuestions = getReachableQuestions(form, answers, sectionHistory).filter(isQuestionVisible);
+  const answeredQuestionsCount = reachableQuestions.filter(q => isQuestionAnswered(q)).length;
+  const progressPercent = reachableQuestions.length > 0
+    ? Math.round((answeredQuestionsCount / reachableQuestions.length) * 100)
     : 0;
 
   return (
@@ -535,7 +572,7 @@ export const PublishedFormView: React.FC<PublishedFormViewProps> = ({ form, isPr
             <div className="flex items-center justify-between text-xs font-mono text-[#84A1C0]">
               <span className="font-semibold text-white flex items-center gap-1.5">
                 <span>Form Progress:</span>
-                <span className="text-[#38BDF8]">{answeredQuestionsCount} of {allVisibleQuestions.length} answered</span>
+                <span className="text-[#38BDF8]">{answeredQuestionsCount} of {reachableQuestions.length} answered</span>
                 {visibleSections.length > 1 && (
                   <span className="text-slate-400 text-[11px]">
                     • (Section {activeSectionIndex + 1}/{visibleSections.length})
@@ -1270,7 +1307,7 @@ export const PublishedFormView: React.FC<PublishedFormViewProps> = ({ form, isPr
 
         {/* Bottom Actions: Next, Back, Submit */}
         <div className="flex items-center justify-between pt-4 border-t border-[#2A3647]">
-          {activeSectionIndex > 0 ? (
+          {sectionHistory.length > 1 ? (
             <button
               type="button"
               onClick={handlePrevSection}

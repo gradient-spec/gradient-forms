@@ -1,6 +1,6 @@
 import React from 'react';
 import { Question, QuestionType } from '../../types';
-import { Sliders, Shield, Award, X, FileQuestion } from 'lucide-react';
+import { Sliders, Shield, Award, X, FileQuestion, GitBranch } from 'lucide-react';
 import { QUESTION_TYPES } from './QuestionCard';
 
 interface QuestionPropertiesProps {
@@ -197,6 +197,26 @@ export const QuestionProperties: React.FC<QuestionPropertiesProps> = ({
                 />
               </div>
             )}
+          </div>
+        )}
+
+        {['multiple_choice', 'dropdown'].includes(question.type) && (
+          <div className="p-2.5 rounded-lg bg-[#161D27] border border-[#2A3647] space-y-2">
+            <label className="flex items-center justify-between cursor-pointer">
+              <span className="text-[11px] font-semibold text-slate-200 flex items-center gap-1.5">
+                <GitBranch className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Go to section based on answer</span>
+              </span>
+              <input
+                type="checkbox"
+                checked={Boolean(question.enableBranching)}
+                onChange={(e) => onUpdate({ enableBranching: e.target.checked })}
+                className="w-4 h-4 rounded accent-cyan-500 cursor-pointer"
+              />
+            </label>
+            <p className="text-[10px] text-slate-400 leading-tight">
+              Direct respondents to different sections or submit the form based on their chosen answer.
+            </p>
           </div>
         )}
 
