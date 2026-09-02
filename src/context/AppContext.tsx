@@ -157,7 +157,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       try {
         const parsed: Form[] = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map(ensureFormDefaults);
+          const clean = parsed.filter(f => f.id !== 'form-trial-2-antigraviti' && !f.id.includes('antigraviti') && !f.title.toLowerCase().includes('antigraviti'));
+          if (clean.length > 0) {
+            localStorage.setItem(LOCAL_STORAGE_KEY_FORMS, JSON.stringify(clean));
+            return clean.map(ensureFormDefaults);
+          }
         }
       } catch (e) { console.error(e); }
     }
@@ -169,7 +173,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (saved) {
       try {
         const parsed: FormResponse[] = JSON.parse(saved);
-        return parsed;
+        if (Array.isArray(parsed)) {
+          const clean = parsed.filter(r => r.formId !== 'form-trial-2-antigraviti');
+          localStorage.setItem(LOCAL_STORAGE_KEY_RESPONSES, JSON.stringify(clean));
+          return clean;
+        }
       } catch (e) { console.error(e); }
     }
     return SEED_RESPONSES;
