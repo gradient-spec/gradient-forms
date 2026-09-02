@@ -117,7 +117,9 @@ export const DashboardView: React.FC = () => {
       {/* Forms Grid */}
       {filteredForms.length === 0 ? (
         <div className="p-12 text-center bg-[#121820] rounded-2xl border border-[#2A3647] space-y-3">
-          <p className="text-slate-400 text-xs">No forms matched your search filter.</p>
+          <p className="text-slate-400 text-xs">
+            {forms.length === 0 ? 'No forms in your workspace yet.' : 'No forms matched your search filter.'}
+          </p>
           <button onClick={() => { createBlankForm(); setActiveView('builder'); }} className="px-4 py-2 bg-[#2563EB] text-white rounded-lg text-xs font-bold cursor-pointer">
             Create Form Now
           </button>

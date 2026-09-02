@@ -16,7 +16,7 @@ import {
   WorkspaceActivity,
   FormVersion
 } from '../types';
-import { SEED_FORMS, SEED_RESPONSES, INITIAL_WORKSPACE, DEFAULT_CURRENT_USER } from '../data/seedData';
+import { SEED_FORMS, SEED_RESPONSES, INITIAL_WORKSPACE, DEFAULT_CURRENT_USER, KNOWN_SEED_FORM_IDS } from '../data/seedData';
 import { PRESET_THEMES } from '../data/presetThemes';
 import { ApiClient } from '../services/apiClient';
 import { GoogleSheetsService } from '../services/googleSheetsService';
@@ -151,23 +151,23 @@ export const ensureFormDefaults = (form: Form): Form => {
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [activeView, setActiveView] = useState<ActiveView>('dashboard');
-  const [activeFormId, setActiveFormId] = useState<string | null>('form-cs-feedback');
+  const [activeFormId, setActiveFormId] = useState<string | null>(null);
   
   const [forms, setForms] = useState<Form[]>(() => {
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY_FORMS);
     if (saved) {
       try {
         const parsed: Form[] = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const clean = parsed.filter(f => f.id !== 'form-trial-2-antigraviti' && !f.id.includes('antigraviti') && !f.title.toLowerCase().includes('antigraviti'));
-          if (clean.length > 0) {
-            localStorage.setItem(LOCAL_STORAGE_KEY_FORMS, JSON.stringify(clean));
-            return clean.map(ensureFormDefaults);
-          }
+        if (Array.isArray(parsed)) {
+          // Safe one-time & persistent migration: Filter out ONLY known seed/demo form IDs by exact stable ID
+          const userForms = parsed.filter(f => !KNOWN_SEED_FORM_IDS.has(f.id));
+          localStorage.setItem(LOCAL_STORAGE_KEY_FORMS, JSON.stringify(userForms));
+          return userForms.map(ensureFormDefaults);
         }
       } catch (e) { console.error(e); }
     }
-    return SEED_FORMS.map(ensureFormDefaults);
+    // Fresh workspace starts with 0 forms
+    return [];
   });
 
   const [responses, setResponses] = useState<FormResponse[]>(() => {
@@ -176,13 +176,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       try {
         const parsed: FormResponse[] = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          const clean = parsed.filter(r => r.formId !== 'form-trial-2-antigraviti');
-          localStorage.setItem(LOCAL_STORAGE_KEY_RESPONSES, JSON.stringify(clean));
-          return clean;
+          // Filter out responses belonging to known seed forms
+          const userResponses = parsed.filter(r => !KNOWN_SEED_FORM_IDS.has(r.formId));
+          localStorage.setItem(LOCAL_STORAGE_KEY_RESPONSES, JSON.stringify(userResponses));
+          return userResponses;
         }
       } catch (e) { console.error(e); }
     }
-    return SEED_RESPONSES;
+    return [];
   });
 
   const [workspace, setWorkspace] = useState<Workspace>(() => {
