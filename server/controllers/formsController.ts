@@ -58,6 +58,7 @@ export const getFormById = (req: Request, res: Response, next: NextFunction) => 
 
   const expiry = form.expiresAt || form.settings?.expiresAt;
   const isExpired = expiry ? new Date().getTime() >= new Date(expiry).getTime() : false;
+  const accessType = form.settings?.accessType || form.accessType || 'public';
   const effectiveStatus = form.status === 'closed'
     ? 'CLOSED'
     : (!form.isPublished || form.status === 'draft')
@@ -70,13 +71,14 @@ export const getFormById = (req: Request, res: Response, next: NextFunction) => 
     success: true,
     data: {
       ...form,
+      accessType,
       effectiveStatus,
       isExpired
     }
   });
 };
 
-// Update Form (Settings, Expiry, Status, Content)
+// Update Form (Settings, Expiry, Status, Content, AccessType)
 export const updateForm = (req: Request, res: Response, next: NextFunction) => {
   const formIndex = formsStore.findIndex(f => f.id === req.params.id);
   if (formIndex === -1) return next(new NotFoundError('Form'));
@@ -89,12 +91,16 @@ export const updateForm = (req: Request, res: Response, next: NextFunction) => {
     }
   }
 
+  const accessType = updates.accessType || updates.settings?.accessType || formsStore[formIndex].settings?.accessType || 'public';
+
   formsStore[formIndex] = {
     ...formsStore[formIndex],
     ...updates,
+    accessType,
     settings: {
       ...formsStore[formIndex].settings,
       ...(updates.settings || {}),
+      accessType,
       expiresAt: updates.expiresAt !== undefined ? updates.expiresAt : formsStore[formIndex].settings?.expiresAt,
       expiryMessage: updates.expiryMessage !== undefined ? updates.expiryMessage : formsStore[formIndex].settings?.expiryMessage
     },

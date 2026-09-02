@@ -109,7 +109,10 @@ export interface DesignTheme {
   bgPattern?: 'grid' | 'dots' | 'none';
 }
 
+export type FormAccessType = 'public' | 'private';
+
 export interface FormSettings {
+  accessType?: FormAccessType; // Canonical Form Access: 'public' | 'private' (defaults to 'public')
   collectEmail: boolean;
   emailCollectionMode?: 'responder_input' | 'verified';
   sendResponseCopy?: 'off' | 'when_requested' | 'always';
@@ -146,6 +149,7 @@ export interface Form {
   id: string;
   title: string;
   description: string;
+  accessType?: FormAccessType; // Convenience accessor delegating to settings.accessType
   isPublished: boolean;
   status: 'draft' | 'published' | 'closed' | 'archived';
   expiresAt?: string;

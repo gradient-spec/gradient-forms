@@ -127,7 +127,9 @@ export const ensureFormDefaults = (form: Form): Form => {
     versions: form.versions || [],
     expiresAt: form.expiresAt || form.settings?.expiresAt,
     expiryMessage: form.expiryMessage || form.settings?.expiryMessage,
+    accessType: form.settings?.accessType || form.accessType || 'public',
     settings: {
+      accessType: form.settings?.accessType || form.accessType || 'public',
       collectEmail: form.settings?.collectEmail ?? true,
       limitOneResponse: form.settings?.limitOneResponse ?? false,
       allowEditResponse: form.settings?.allowEditResponse ?? false,
@@ -440,7 +442,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       authorAvatar: currentUser.avatar,
       workspaceId: workspace.id,
       theme: PRESET_THEMES[0],
+      accessType: 'public',
       settings: {
+        accessType: 'public',
         collectEmail: true,
         limitOneResponse: false,
         allowEditResponse: false,

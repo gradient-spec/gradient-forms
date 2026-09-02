@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FormSettings } from '../../types';
-import { Settings, Shield, Bell, Check, X, Award, Eye, MessageCircle, Save, FileCheck, Clock } from 'lucide-react';
+import { Settings, Shield, Bell, Check, X, Award, Eye, MessageCircle, Save, FileCheck, Clock, Globe, Lock } from 'lucide-react';
 import { format, parseISO, isValid } from 'date-fns';
 import { formatExpiryDescription, validateFutureExpiry } from '../../utils/formStatus';
 import { useApp } from '../../context/AppContext';
@@ -64,7 +64,67 @@ export const FormSettingsModal: React.FC<FormSettingsModalProps> = ({
         <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
           {/* General & Security */}
           <div className="space-y-4">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+            {/* Form Access Type */}
+            <div className="space-y-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                <Globe className="w-4 h-4 text-cyan-400" /> Form Access
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Public Option */}
+                <label
+                  className={`p-3.5 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
+                    (settings.accessType || 'public') === 'public'
+                      ? 'bg-[#2563EB]/15 border-[#2563EB] shadow-neo'
+                      : 'bg-white/5 border-white/10 hover:border-white/20'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <Globe className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Public</span>
+                    </span>
+                    <input
+                      type="radio"
+                      name="formAccessType"
+                      checked={(settings.accessType || 'public') === 'public'}
+                      onChange={() => onUpdateSettings({ ...settings, accessType: 'public' })}
+                      className="w-4 h-4 accent-[#2563EB] cursor-pointer"
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    Anyone with the form link can respond. No login or verification required.
+                  </p>
+                </label>
+
+                {/* Private Option */}
+                <label
+                  className={`p-3.5 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
+                    settings.accessType === 'private'
+                      ? 'bg-amber-500/15 border-amber-500/60 shadow-neo'
+                      : 'bg-white/5 border-white/10 hover:border-white/20'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <Lock className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Private</span>
+                    </span>
+                    <input
+                      type="radio"
+                      name="formAccessType"
+                      checked={settings.accessType === 'private'}
+                      onChange={() => onUpdateSettings({ ...settings, accessType: 'private' })}
+                      className="w-4 h-4 accent-amber-500 cursor-pointer"
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    Only authenticated respondents will be able to respond. (Authentication required).
+                  </p>
+                </label>
+              </div>
+            </div>
+
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-2 pt-2 border-t border-white/5">
               <Shield className="w-4 h-4 text-violet-400" /> Response Security Rules
             </span>
 

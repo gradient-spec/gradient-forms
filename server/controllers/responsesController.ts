@@ -29,6 +29,19 @@ export const submitResponse = (req: Request, res: Response, next: NextFunction) 
     }
   }
 
+  // 3. Rejection rule: Private Form unauthenticated submission check
+  const accessType = form.settings?.accessType || form.accessType || 'public';
+  if (accessType === 'private') {
+    const isRespondentAuthenticated = Boolean(req.headers['x-auth-user'] || req.body?.authenticatedUserId);
+    if (!isRespondentAuthenticated) {
+      return res.status(401).json({
+        success: false,
+        error: 'AUTH_REQUIRED',
+        message: 'This form is private and requires authenticated access before submissions can be accepted.'
+      });
+    }
+  }
+
   const newResponse = {
     id: 'resp-' + Date.now(),
     formId: form.id,

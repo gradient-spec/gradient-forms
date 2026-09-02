@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Form, Question, Section } from '../../types';
 import { useApp } from '../../context/AppContext';
-import { CheckCircle2, Award, Star, ArrowRight, ArrowLeft, RefreshCw, Upload, FileText, AlertCircle, MessageCircle, ExternalLink, ShieldCheck, Mail, ShieldAlert, Check, Layers, Send, Cloud, Clock } from 'lucide-react';
+import { CheckCircle2, Award, Star, ArrowRight, ArrowLeft, RefreshCw, Upload, FileText, AlertCircle, MessageCircle, ExternalLink, ShieldCheck, Mail, ShieldAlert, Check, Layers, Send, Cloud, Clock, Lock, Globe } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { evaluateLogicRule } from '../../utils/logicEvaluator';
 import { getEffectiveFormStatus, formatExpiryDescription } from '../../utils/formStatus';
@@ -11,6 +11,7 @@ import {
   getBranchingQuestionForSection,
   ACTION_SUBMIT_FORM
 } from '../../utils/branchingEngine';
+import { resolveFormAccess, getFormAccessType } from '../../utils/formAccessEngine';
 
 interface PublishedFormViewProps {
   form: Form;
@@ -552,6 +553,32 @@ export const PublishedFormView: React.FC<PublishedFormViewProps> = ({ form, isPr
             <div className="font-mono text-white font-bold">{expiryDetails.fullLabel}</div>
           </div>
         )}
+      </div>
+    );
+  }
+
+  // 3. Form Access Check (Public vs Private Access Gate)
+  const accessResolution = resolveFormAccess(form, { isPreview });
+  if (!accessResolution.isAllowed && !isPreview) {
+    return (
+      <div className="p-8 md:p-12 max-w-xl mx-auto text-center space-y-6 py-16 animate-fadeIn">
+        <div className="w-16 h-16 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 flex items-center justify-center mx-auto shadow-neo">
+          <Lock className="w-8 h-8 text-amber-400" />
+        </div>
+        <div className="space-y-2">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[10px] font-mono uppercase tracking-wider">
+            Private Form • Authentication Required
+          </div>
+          <h2 className="text-2xl md:text-3xl font-bold font-heading text-white">{form.title}</h2>
+          <p className="text-slate-300 text-xs sm:text-sm leading-relaxed max-w-md mx-auto">
+            This form is configured as Private and requires respondent authentication to access.
+          </p>
+        </div>
+        <div className="p-4 rounded-xl bg-[#1A2332] border border-[#2A3647] text-xs text-slate-400 text-center max-w-sm mx-auto space-y-1">
+          <p className="text-[11px] text-slate-400">
+            Authentication integration point active. Please sign in with an authorized account when authentication is available.
+          </p>
+        </div>
       </div>
     );
   }
