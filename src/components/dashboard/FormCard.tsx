@@ -1,11 +1,25 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Form } from '../../types';
 import { useApp } from '../../context/AppContext';
-import { MoreVertical, Eye, Share2, Copy, Trash2, Edit3, MessageSquare, User, Clock, AlertCircle } from 'lucide-react';
+import { MoreVertical, Eye, Share2, Copy, Trash2, Edit3, MessageSquare, User, Clock, AlertCircle, Check } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { getEffectiveFormStatus, formatExpiryDescription } from '../../utils/formStatus';
 
-export const FormCard: React.FC<{ form: Form; onShareClick: (formId: string) => void }> = ({ form, onShareClick }) => {
+interface FormCardProps {
+  form: Form;
+  onShareClick: (formId: string) => void;
+  isSelected?: boolean;
+  onToggleSelect?: (formId: string) => void;
+  isSelectionMode?: boolean;
+}
+
+export const FormCard: React.FC<FormCardProps> = ({
+  form,
+  onShareClick,
+  isSelected = false,
+  onToggleSelect,
+  isSelectionMode = false
+}) => {
   const { setActiveFormId, setActiveView, deleteForm, duplicateForm, publishFormToggle, responses } = useApp();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -46,6 +60,9 @@ export const FormCard: React.FC<{ form: Form; onShareClick: (formId: string) => 
   };
 
   const getBorderColor = () => {
+    if (isSelected) {
+      return 'border-[#38BDF8] ring-2 ring-[#38BDF8]/60 bg-[#172234]/95 shadow-[0_0_20px_rgba(56,189,248,0.2)]';
+    }
     switch (effectiveStatus) {
       case 'OPEN': return 'border-emerald-500 hover:border-emerald-400';
       case 'EXPIRED': return 'border-amber-500 hover:border-amber-400';
@@ -64,9 +81,33 @@ export const FormCard: React.FC<{ form: Form; onShareClick: (formId: string) => 
       {/* Card Face: Form Title, Description & 3-Dots Menu Button */}
       <div className="space-y-3">
         <div className="flex items-start justify-between gap-3">
-          <h3 className="font-display font-bold text-lg md:text-xl text-white group-hover:text-[#38BDF8] transition-colors line-clamp-1 pr-1 tracking-tight">
-            {form.title}
-          </h3>
+          <div className="flex items-center gap-2.5 flex-1 min-w-0">
+            {/* Multi-select Checkbox */}
+            {onToggleSelect && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleSelect(form.id);
+                }}
+                className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-all cursor-pointer ${
+                  isSelected
+                    ? 'bg-[#2563EB] border-[#38BDF8] text-white shadow-sm ring-2 ring-[#38BDF8]/40'
+                    : isSelectionMode
+                    ? 'bg-[#1A2332] border-[#475569] hover:border-[#38BDF8] text-transparent'
+                    : 'bg-[#1A2332]/80 border-[#334155] opacity-0 group-hover:opacity-100 hover:border-[#38BDF8] text-transparent'
+                }`}
+                title={isSelected ? 'Deselect Form' : 'Select Form'}
+                aria-label={`Select ${form.title}`}
+              >
+                <Check className={`w-3.5 h-3.5 ${isSelected ? 'opacity-100 stroke-[3]' : 'opacity-0'}`} />
+              </button>
+            )}
+
+            <h3 className="font-display font-bold text-lg md:text-xl text-white group-hover:text-[#38BDF8] transition-colors line-clamp-1 pr-1 tracking-tight">
+              {form.title}
+            </h3>
+          </div>
 
           {/* 3-Dots Menu Button & Popover */}
           <div className="relative shrink-0 z-50" ref={menuRef} onClick={(e) => e.stopPropagation()}>

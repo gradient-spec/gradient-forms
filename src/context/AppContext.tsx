@@ -62,6 +62,7 @@ interface AppContextType {
   createFormFromTemplate: (templateId: string) => string;
   updateForm: (formId: string, updates: Partial<Form>) => void;
   deleteForm: (formId: string) => void;
+  bulkDeleteForms: (formIds: string[]) => void;
   duplicateForm: (formId: string) => string;
   publishFormToggle: (formId: string) => void;
   
@@ -639,6 +640,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast('Form Deleted', 'Form removed from workspace.', 'info');
   };
 
+  const bulkDeleteForms = (formIds: string[]) => {
+    if (!formIds || formIds.length === 0) return;
+    const toDeleteSet = new Set(formIds);
+    setForms(prev => prev.filter(f => !toDeleteSet.has(f.id)));
+    if (activeFormId && toDeleteSet.has(activeFormId)) {
+      const remaining = forms.filter(f => !toDeleteSet.has(f.id));
+      setActiveFormId(remaining.length > 0 ? remaining[0].id : null);
+    }
+    const count = formIds.length;
+    showToast(`${count} Form${count > 1 ? 's' : ''} Deleted 🗑️`, `Removed ${count} selected form${count > 1 ? 's' : ''} from workspace.`, 'info');
+  };
+
   const duplicateForm = (formId: string): string => {
     const target = forms.find(f => f.id === formId);
     if (!target) return '';
@@ -1087,6 +1100,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         createFormFromTemplate,
         updateForm,
         deleteForm,
+        bulkDeleteForms,
         duplicateForm,
         publishFormToggle,
         addQuestion,
