@@ -40,16 +40,16 @@ export const GoogleFormsFloatingToolbar: React.FC<GoogleFormsFloatingToolbarProp
       }`}
     >
       {/* 1. Add Question */}
-      <div className="relative group">
+      <div className="relative group/tool">
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onAddQuestion(); }}
           className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-300 hover:text-white hover:bg-[#2563EB]/20 hover:border hover:border-[#2563EB]/50 transition-all cursor-pointer"
           aria-label="Add question"
         >
-          <PlusCircle className="w-5 h-5 text-[#38BDF8] group-hover:scale-110 transition-transform" />
+          <PlusCircle className="w-5 h-5 text-[#38BDF8] group-hover/tool:scale-110 transition-transform" />
         </button>
-        <div className={`pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-150 absolute z-50 bg-[#0F172A] text-slate-100 text-xs font-semibold px-3 py-1.5 rounded-xl border border-[#334155] shadow-[0_10px_30px_rgba(0,0,0,0.8)] whitespace-nowrap backdrop-blur-md flex items-center ${
+        <div className={`pointer-events-none opacity-0 group-hover/tool:opacity-100 transition-all duration-150 absolute z-50 bg-[#0F172A] text-slate-100 text-xs font-semibold px-3 py-1.5 rounded-xl border border-[#334155] shadow-[0_10px_30px_rgba(0,0,0,0.8)] whitespace-nowrap backdrop-blur-md flex items-center ${
           isHorizontal ? 'bottom-full mb-2.5 left-1/2 -translate-x-1/2' : 'left-full ml-3 top-1/2 -translate-y-1/2'
         }`}>
           {!isHorizontal && (
@@ -60,16 +60,16 @@ export const GoogleFormsFloatingToolbar: React.FC<GoogleFormsFloatingToolbarProp
       </div>
 
       {/* 2. Import Questions */}
-      <div className="relative group">
+      <div className="relative group/tool">
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onImportQuestions(); }}
           className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-300 hover:text-white hover:bg-[#2563EB]/20 hover:border hover:border-[#2563EB]/50 transition-all cursor-pointer"
           aria-label="Import questions"
         >
-          <FileDown className="w-5 h-5 text-indigo-400 group-hover:scale-110 transition-transform" />
+          <FileDown className="w-5 h-5 text-indigo-400 group-hover/tool:scale-110 transition-transform" />
         </button>
-        <div className={`pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-150 absolute z-50 bg-[#0F172A] text-slate-100 text-xs font-semibold px-3 py-1.5 rounded-xl border border-[#334155] shadow-[0_10px_30px_rgba(0,0,0,0.8)] whitespace-nowrap backdrop-blur-md flex items-center ${
+        <div className={`pointer-events-none opacity-0 group-hover/tool:opacity-100 transition-all duration-150 absolute z-50 bg-[#0F172A] text-slate-100 text-xs font-semibold px-3 py-1.5 rounded-xl border border-[#334155] shadow-[0_10px_30px_rgba(0,0,0,0.8)] whitespace-nowrap backdrop-blur-md flex items-center ${
           isHorizontal ? 'bottom-full mb-2.5 left-1/2 -translate-x-1/2' : 'left-full ml-3 top-1/2 -translate-y-1/2'
         }`}>
           {!isHorizontal && (
@@ -80,7 +80,7 @@ export const GoogleFormsFloatingToolbar: React.FC<GoogleFormsFloatingToolbarProp
       </div>
 
       {/* 3. Add Title & Description / Typography (TT) */}
-      <div className="relative group">
+      <div className="relative group/tool">
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onToggleFormatting(); }}
@@ -91,11 +91,11 @@ export const GoogleFormsFloatingToolbar: React.FC<GoogleFormsFloatingToolbarProp
           }`}
           aria-label="Format text and headline sizes"
         >
-          <span className="font-heading font-black text-sm tracking-tighter text-cyan-300 group-hover:scale-110 transition-transform flex items-baseline">
+          <span className="font-heading font-black text-sm tracking-tighter text-cyan-300 group-hover/tool:scale-110 transition-transform flex items-baseline">
             T<span className="text-[10px]">T</span>
           </span>
         </button>
-        <div className={`pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-150 absolute z-50 bg-[#0F172A] text-slate-100 text-xs font-semibold px-3 py-1.5 rounded-xl border border-[#334155] shadow-[0_10px_30px_rgba(0,0,0,0.8)] whitespace-nowrap backdrop-blur-md flex items-center ${
+        <div className={`pointer-events-none opacity-0 group-hover/tool:opacity-100 transition-all duration-150 absolute z-50 bg-[#0F172A] text-slate-100 text-xs font-semibold px-3 py-1.5 rounded-xl border border-[#334155] shadow-[0_10px_30px_rgba(0,0,0,0.8)] whitespace-nowrap backdrop-blur-md flex items-center ${
           isHorizontal ? 'bottom-full mb-2.5 left-1/2 -translate-x-1/2' : 'left-full ml-3 top-1/2 -translate-y-1/2'
         }`}>
           {!isHorizontal && (
@@ -106,7 +106,7 @@ export const GoogleFormsFloatingToolbar: React.FC<GoogleFormsFloatingToolbarProp
       </div>
 
       {/* 4. Add Image */}
-      <div className="relative group">
+      <div className="relative group/tool">
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onAddImage(); }}
@@ -117,9 +117,9 @@ export const GoogleFormsFloatingToolbar: React.FC<GoogleFormsFloatingToolbarProp
           }`}
           aria-label="Add image"
         >
-          <ImageIcon className="w-5 h-5 text-emerald-400 group-hover:scale-110 transition-transform" />
+          <ImageIcon className="w-5 h-5 text-emerald-400 group-hover/tool:scale-110 transition-transform" />
         </button>
-        <div className={`pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-150 absolute z-50 bg-[#0F172A] text-slate-100 text-xs font-semibold px-3 py-1.5 rounded-xl border border-[#334155] shadow-[0_10px_30px_rgba(0,0,0,0.8)] whitespace-nowrap backdrop-blur-md flex items-center ${
+        <div className={`pointer-events-none opacity-0 group-hover/tool:opacity-100 transition-all duration-150 absolute z-50 bg-[#0F172A] text-slate-100 text-xs font-semibold px-3 py-1.5 rounded-xl border border-[#334155] shadow-[0_10px_30px_rgba(0,0,0,0.8)] whitespace-nowrap backdrop-blur-md flex items-center ${
           isHorizontal ? 'bottom-full mb-2.5 left-1/2 -translate-x-1/2' : 'left-full ml-3 top-1/2 -translate-y-1/2'
         }`}>
           {!isHorizontal && (
@@ -130,16 +130,16 @@ export const GoogleFormsFloatingToolbar: React.FC<GoogleFormsFloatingToolbarProp
       </div>
 
       {/* 5. Add Video */}
-      <div className="relative group">
+      <div className="relative group/tool">
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onAddVideo(); }}
           className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-300 hover:text-white hover:bg-[#2563EB]/20 hover:border hover:border-[#2563EB]/50 transition-all cursor-pointer"
           aria-label="Add video"
         >
-          <PlaySquare className="w-5 h-5 text-rose-400 group-hover:scale-110 transition-transform" />
+          <PlaySquare className="w-5 h-5 text-rose-400 group-hover/tool:scale-110 transition-transform" />
         </button>
-        <div className={`pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-150 absolute z-50 bg-[#0F172A] text-slate-100 text-xs font-semibold px-3 py-1.5 rounded-xl border border-[#334155] shadow-[0_10px_30px_rgba(0,0,0,0.8)] whitespace-nowrap backdrop-blur-md flex items-center ${
+        <div className={`pointer-events-none opacity-0 group-hover/tool:opacity-100 transition-all duration-150 absolute z-50 bg-[#0F172A] text-slate-100 text-xs font-semibold px-3 py-1.5 rounded-xl border border-[#334155] shadow-[0_10px_30px_rgba(0,0,0,0.8)] whitespace-nowrap backdrop-blur-md flex items-center ${
           isHorizontal ? 'bottom-full mb-2.5 left-1/2 -translate-x-1/2' : 'left-full ml-3 top-1/2 -translate-y-1/2'
         }`}>
           {!isHorizontal && (
@@ -150,16 +150,16 @@ export const GoogleFormsFloatingToolbar: React.FC<GoogleFormsFloatingToolbarProp
       </div>
 
       {/* 6. Add Section */}
-      <div className="relative group">
+      <div className="relative group/tool">
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onAddSection(); }}
           className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-300 hover:text-white hover:bg-[#2563EB]/20 hover:border hover:border-[#2563EB]/50 transition-all cursor-pointer"
           aria-label="Add section"
         >
-          <Rows className="w-5 h-5 text-amber-400 group-hover:scale-110 transition-transform" />
+          <Rows className="w-5 h-5 text-amber-400 group-hover/tool:scale-110 transition-transform" />
         </button>
-        <div className={`pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-150 absolute z-50 bg-[#0F172A] text-slate-100 text-xs font-semibold px-3 py-1.5 rounded-xl border border-[#334155] shadow-[0_10px_30px_rgba(0,0,0,0.8)] whitespace-nowrap backdrop-blur-md flex items-center ${
+        <div className={`pointer-events-none opacity-0 group-hover/tool:opacity-100 transition-all duration-150 absolute z-50 bg-[#0F172A] text-slate-100 text-xs font-semibold px-3 py-1.5 rounded-xl border border-[#334155] shadow-[0_10px_30px_rgba(0,0,0,0.8)] whitespace-nowrap backdrop-blur-md flex items-center ${
           isHorizontal ? 'bottom-full mb-2.5 left-1/2 -translate-x-1/2' : 'left-full ml-3 top-1/2 -translate-y-1/2'
         }`}>
           {!isHorizontal && (
