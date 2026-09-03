@@ -65,6 +65,14 @@ interface AppContextType {
   bulkDeleteForms: (formIds: string[]) => void;
   duplicateForm: (formId: string) => string;
   publishFormToggle: (formId: string) => void;
+
+  // Trash / Recycle Bin Actions
+  trashForms: Form[];
+  restoreForm: (formId: string) => void;
+  bulkRestoreForms: (formIds: string[]) => void;
+  permanentlyDeleteForm: (formId: string) => void;
+  bulkPermanentlyDeleteForms: (formIds: string[]) => void;
+  emptyTrash: () => void;
   
   // Builder Actions
   addQuestion: (formId: string, sectionId: string, type: QuestionType, afterIndex?: number) => void;
@@ -104,7 +112,8 @@ export const STORAGE_KEYS = {
   RESPONSES: 'gradient_forms_v1_responses',
   WORKSPACE: 'gradient_forms_v1_workspace',
   INVITES: 'gradient_forms_v1_invites',
-  ACTIVITIES: 'gradient_forms_v1_activities'
+  ACTIVITIES: 'gradient_forms_v1_activities',
+  TRASH: 'gradient_forms_v1_trash'
 };
 
 export const LEGACY_STORAGE_KEYS = {
@@ -236,6 +245,24 @@ export function loadPersistedWorkspace(): Workspace {
   return INITIAL_WORKSPACE;
 }
 
+/**
+ * Non-destructive loader for deleted forms in Recycle Bin.
+ */
+export function loadPersistedTrash(): Form[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.TRASH);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed.map(f => ensureFormDefaults(f));
+      }
+    }
+  } catch (e) {
+    console.warn('[Storage] Trash load error:', e);
+  }
+  return [];
+}
+
 export const ensureFormDefaults = (form: Form): Form => {
   if (!form) return form;
   const sections: Section[] = form.sections && form.sections.length > 0
@@ -286,6 +313,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activeFormId, setActiveFormId] = useState<string | null>(null);
   
   const [forms, setForms] = useState<Form[]>(() => loadPersistedForms());
+  const [trashForms, setTrashForms] = useState<Form[]>(() => loadPersistedTrash());
   const [responses, setResponses] = useState<FormResponse[]>(() => loadPersistedResponses());
   const [workspace, setWorkspace] = useState<Workspace>(() => loadPersistedWorkspace());
 
@@ -633,23 +661,74 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteForm = (formId: string) => {
+    const formToDelete = forms.find(f => f.id === formId);
+    if (!formToDelete) return;
+    const deletedForm: Form = { ...formToDelete, deletedAt: new Date().toISOString() };
     setForms(prev => prev.filter(f => f.id !== formId));
+    setTrashForms(prev => [deletedForm, ...prev.filter(f => f.id !== formId)]);
     if (activeFormId === formId) {
       setActiveFormId(forms.find(f => f.id !== formId)?.id || null);
     }
-    showToast('Form Deleted', 'Form removed from workspace.', 'info');
+    showToast('Moved to Recycle Bin 🗑️', `"${formToDelete.title}" moved to Recycle Bin in Settings.`, 'info');
   };
 
   const bulkDeleteForms = (formIds: string[]) => {
     if (!formIds || formIds.length === 0) return;
     const toDeleteSet = new Set(formIds);
+    const formsToDelete = forms.filter(f => toDeleteSet.has(f.id)).map(f => ({ ...f, deletedAt: new Date().toISOString() }));
     setForms(prev => prev.filter(f => !toDeleteSet.has(f.id)));
+    setTrashForms(prev => [...formsToDelete, ...prev.filter(f => !toDeleteSet.has(f.id))]);
     if (activeFormId && toDeleteSet.has(activeFormId)) {
       const remaining = forms.filter(f => !toDeleteSet.has(f.id));
       setActiveFormId(remaining.length > 0 ? remaining[0].id : null);
     }
     const count = formIds.length;
-    showToast(`${count} Form${count > 1 ? 's' : ''} Deleted 🗑️`, `Removed ${count} selected form${count > 1 ? 's' : ''} from workspace.`, 'info');
+    showToast(`${count} Form${count > 1 ? 's' : ''} Moved to Trash 🗑️`, `${count} form${count > 1 ? 's' : ''} moved to Recycle Bin in Settings.`, 'info');
+  };
+
+  const restoreForm = (formId: string) => {
+    const target = trashForms.find(f => f.id === formId);
+    if (!target) return;
+    const { deletedAt, ...restored } = target;
+    setTrashForms(prev => prev.filter(f => f.id !== formId));
+    setForms(prev => [restored as Form, ...prev]);
+    showToast('Form Restored ♻️', `"${target.title}" restored back to your workspace.`, 'success');
+  };
+
+  const bulkRestoreForms = (formIds: string[]) => {
+    if (!formIds || formIds.length === 0) return;
+    const restoreSet = new Set(formIds);
+    const restored = trashForms.filter(f => restoreSet.has(f.id)).map(f => {
+      const { deletedAt, ...rest } = f;
+      return rest as Form;
+    });
+    setTrashForms(prev => prev.filter(f => !restoreSet.has(f.id)));
+    setForms(prev => [...restored, ...prev]);
+    const count = restored.length;
+    showToast(`${count} Form${count > 1 ? 's' : ''} Restored ♻️`, `${count} form${count > 1 ? 's' : ''} restored to your workspace.`, 'success');
+  };
+
+  const permanentlyDeleteForm = (formId: string) => {
+    const target = trashForms.find(f => f.id === formId);
+    setTrashForms(prev => prev.filter(f => f.id !== formId));
+    setResponses(prev => prev.filter(r => r.formId !== formId));
+    showToast('Permanently Deleted 💥', `"${target?.title || 'Form'}" permanently removed.`, 'info');
+  };
+
+  const bulkPermanentlyDeleteForms = (formIds: string[]) => {
+    if (!formIds || formIds.length === 0) return;
+    const deleteSet = new Set(formIds);
+    setTrashForms(prev => prev.filter(f => !deleteSet.has(f.id)));
+    setResponses(prev => prev.filter(r => !deleteSet.has(r.formId)));
+    const count = formIds.length;
+    showToast(`${count} Form${count > 1 ? 's' : ''} Permanently Deleted 💥`, `${count} form${count > 1 ? 's' : ''} permanently purged.`, 'info');
+  };
+
+  const emptyTrash = () => {
+    const allTrashIds = new Set(trashForms.map(f => f.id));
+    setTrashForms([]);
+    setResponses(prev => prev.filter(r => !allTrashIds.has(r.formId)));
+    showToast('Recycle Bin Emptied 🧹', 'All deleted forms have been permanently purged.', 'success');
   };
 
   const duplicateForm = (formId: string): string => {
@@ -1101,6 +1180,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateForm,
         deleteForm,
         bulkDeleteForms,
+        trashForms,
+        restoreForm,
+        bulkRestoreForms,
+        permanentlyDeleteForm,
+        bulkPermanentlyDeleteForms,
+        emptyTrash,
         duplicateForm,
         publishFormToggle,
         addQuestion,

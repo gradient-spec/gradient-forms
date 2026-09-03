@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { Form } from '../types';
 
-describe('Bulk Form Deletion & Multi-Select Engine', () => {
+describe('Bulk Form Deletion & Recycle Bin Engine Tests', () => {
   const sampleForms: Form[] = [
     {
       id: 'form-1',
@@ -62,49 +62,80 @@ describe('Bulk Form Deletion & Multi-Select Engine', () => {
     }
   ];
 
-  it('1. Correctly removes multiple selected forms at once by ID', () => {
+  it('1. Correctly moves multiple selected forms from workspace to Recycle Bin with deletedAt timestamp', () => {
+    let workspaceForms = [...sampleForms];
+    let trashForms: Form[] = [];
     const idsToDelete = ['form-1', 'form-3'];
     const deleteSet = new Set(idsToDelete);
 
-    const remaining = sampleForms.filter(f => !deleteSet.has(f.id));
+    const deletedItems = workspaceForms
+      .filter(f => deleteSet.has(f.id))
+      .map(f => ({ ...f, deletedAt: new Date().toISOString() }));
 
-    expect(remaining.length).toBe(1);
-    expect(remaining[0].id).toBe('form-2');
-    expect(remaining[0].title).toBe('Survey 2');
+    workspaceForms = workspaceForms.filter(f => !deleteSet.has(f.id));
+    trashForms = [...deletedItems, ...trashForms];
+
+    expect(workspaceForms.length).toBe(1);
+    expect(workspaceForms[0].id).toBe('form-2');
+    expect(trashForms.length).toBe(2);
+    expect(trashForms.map(f => f.id)).toEqual(['form-1', 'form-3']);
+    expect(trashForms[0].deletedAt).toBeDefined();
   });
 
-  it('2. Preserves all forms when deletion set is empty', () => {
-    const idsToDelete: string[] = [];
-    const deleteSet = new Set(idsToDelete);
+  it('2. Correctly restores deleted forms from Recycle Bin back to active workspace', () => {
+    let workspaceForms = [sampleForms[1]]; // 'form-2'
+    let trashForms: Form[] = [
+      { ...sampleForms[0], deletedAt: new Date().toISOString() },
+      { ...sampleForms[2], deletedAt: new Date().toISOString() }
+    ];
 
-    const remaining = sampleForms.filter(f => !deleteSet.has(f.id));
+    // Restore form-1
+    const formToRestore = trashForms.find(f => f.id === 'form-1')!;
+    const { deletedAt, ...restoredForm } = formToRestore;
+    trashForms = trashForms.filter(f => f.id !== 'form-1');
+    workspaceForms = [restoredForm as Form, ...workspaceForms];
 
-    expect(remaining.length).toBe(3);
-    expect(remaining.map(f => f.id)).toEqual(['form-1', 'form-2', 'form-3']);
+    expect(workspaceForms.length).toBe(2);
+    expect(workspaceForms.map(f => f.id)).toContain('form-1');
+    expect(trashForms.length).toBe(1);
+    expect(trashForms[0].id).toBe('form-3');
   });
 
-  it('3. Select-all and Deselect-all toggles accurately update the selected IDs set', () => {
-    const allIds = sampleForms.map(f => f.id);
+  it('3. Correctly permanently deletes forms from Recycle Bin', () => {
+    let trashForms: Form[] = [
+      { ...sampleForms[0], deletedAt: new Date().toISOString() },
+      { ...sampleForms[1], deletedAt: new Date().toISOString() }
+    ];
+
+    // Permanently delete form-0
+    trashForms = trashForms.filter(f => f.id !== 'form-1');
+
+    expect(trashForms.length).toBe(1);
+    expect(trashForms[0].id).toBe('form-2');
+
+    // Empty entire trash
+    trashForms = [];
+    expect(trashForms.length).toBe(0);
+  });
+
+  it('4. Select-mode allows selecting individual forms without auto-selecting all', () => {
     let selectedSet = new Set<string>();
 
-    // Select All
-    selectedSet = new Set(allIds);
-    expect(selectedSet.size).toBe(3);
-    expect(selectedSet.has('form-1')).toBe(true);
+    // User clicks checkbox on form-2 only
+    selectedSet.add('form-2');
+    expect(selectedSet.size).toBe(1);
+    expect(selectedSet.has('form-2')).toBe(true);
+    expect(selectedSet.has('form-1')).toBe(false);
+    expect(selectedSet.has('form-3')).toBe(false);
+
+    // User clicks checkbox on form-3 as well
+    selectedSet.add('form-3');
+    expect(selectedSet.size).toBe(2);
     expect(selectedSet.has('form-2')).toBe(true);
     expect(selectedSet.has('form-3')).toBe(true);
-
-    // Deselect single
-    selectedSet.delete('form-2');
-    expect(selectedSet.size).toBe(2);
-    expect(selectedSet.has('form-2')).toBe(false);
-
-    // Clear / Deselect all
-    selectedSet.clear();
-    expect(selectedSet.size).toBe(0);
   });
 
-  it('4. Reassigns activeFormId when the active form is deleted during bulk deletion', () => {
+  it('5. Reassigns activeFormId when the active form is deleted during bulk deletion', () => {
     let activeId: string | null = 'form-1';
     const idsToDelete = ['form-1', 'form-2'];
     const toDeleteSet = new Set(idsToDelete);

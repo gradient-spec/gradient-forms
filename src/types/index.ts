@@ -154,6 +154,7 @@ export interface Form {
   status: 'draft' | 'published' | 'closed' | 'archived';
   expiresAt?: string;
   expiryMessage?: string;
+  deletedAt?: string; // Set when form is moved to Recycle Bin
   createdAt: string;
   updatedAt: string;
   responseCount: number;

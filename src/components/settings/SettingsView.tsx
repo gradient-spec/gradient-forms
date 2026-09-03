@@ -24,8 +24,15 @@ import {
   Maximize2,
   Minimize2,
   RefreshCw,
-  Trash2
+  Trash2,
+  RotateCcw,
+  AlertTriangle,
+  CheckSquare,
+  Square,
+  Clock,
+  ArchiveRestore
 } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 import { IntegrationDetailModal, IntegrationType } from '../integrations/IntegrationDetailModal';
 import {
   GoogleSheetsCard,
@@ -41,6 +48,12 @@ export const SettingsView: React.FC = () => {
     currentUser,
     workspace,
     forms,
+    trashForms,
+    restoreForm,
+    bulkRestoreForms,
+    permanentlyDeleteForm,
+    bulkPermanentlyDeleteForms,
+    emptyTrash,
     updateUserProfile,
     updateWorkspaceName,
     showToast,
@@ -50,8 +63,8 @@ export const SettingsView: React.FC = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Active Settings Tab state (profile or integrations)
-  const [activeTab, setActiveTab] = useState<'profile' | 'integrations'>(
+  // Active Settings Tab state (profile, integrations, or trash)
+  const [activeTab, setActiveTab] = useState<'profile' | 'integrations' | 'trash'>(
     activeView === 'integrations' ? 'integrations' : 'profile'
   );
 
@@ -65,6 +78,12 @@ export const SettingsView: React.FC = () => {
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [isWorkspaceModalOpen, setIsWorkspaceModalOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+
+  // Recycle Bin selection & modal state
+  const [selectedTrashIds, setSelectedTrashIds] = useState<Set<string>>(new Set());
+  const [confirmPermanentDeleteId, setConfirmPermanentDeleteId] = useState<string | null>(null);
+  const [isConfirmEmptyTrashOpen, setIsConfirmEmptyTrashOpen] = useState(false);
+  const [isConfirmBulkPermanentOpen, setIsConfirmBulkPermanentOpen] = useState(false);
 
   // Profile Edit fields
   const [editName, setEditName] = useState(currentUser.name);
@@ -213,7 +232,7 @@ export const SettingsView: React.FC = () => {
     setIsDragging(false);
   }, []);
 
-  // Global drag listeners for fluid panning even when pointer moves outside container
+  // Global drag listeners for fluid panning
   useEffect(() => {
     if (isDragging) {
       window.addEventListener('mousemove', handleMouseMove);
@@ -258,13 +277,11 @@ export const SettingsView: React.FC = () => {
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
 
-      // Clip output to crisp circle
       ctx.beginPath();
       ctx.arc(outSize / 2, outSize / 2, outSize / 2, 0, Math.PI * 2);
       ctx.closePath();
       ctx.clip();
 
-      // Transform
       ctx.translate(outSize / 2, outSize / 2);
       ctx.rotate((rotation * Math.PI) / 180);
 
@@ -352,6 +369,40 @@ export const SettingsView: React.FC = () => {
     setActiveView('dashboard');
   };
 
+  // Trash Multi-Selection Handlers
+  const handleToggleSelectTrash = (formId: string) => {
+    setSelectedTrashIds(prev => {
+      const next = new Set(prev);
+      if (next.has(formId)) {
+        next.delete(formId);
+      } else {
+        next.add(formId);
+      }
+      return next;
+    });
+  };
+
+  const handleToggleSelectAllTrash = () => {
+    if (selectedTrashIds.size === trashForms.length && trashForms.length > 0) {
+      setSelectedTrashIds(new Set());
+    } else {
+      setSelectedTrashIds(new Set(trashForms.map(f => f.id)));
+    }
+  };
+
+  const handleBulkRestoreSelected = () => {
+    const ids = Array.from(selectedTrashIds);
+    bulkRestoreForms(ids);
+    setSelectedTrashIds(new Set());
+  };
+
+  const handleConfirmBulkPermanentDelete = () => {
+    const ids = Array.from(selectedTrashIds);
+    bulkPermanentlyDeleteForms(ids);
+    setSelectedTrashIds(new Set());
+    setIsConfirmBulkPermanentOpen(false);
+  };
+
   // Compute CSS sizing for interactive viewfinder
   const CROP_DIAMETER = 220;
   const naturalW = imgDimensions.width || 220;
@@ -396,12 +447,12 @@ export const SettingsView: React.FC = () => {
             Admin Profile &amp; Settings
           </h1>
           <p className="text-xs md:text-sm text-slate-400 mt-1">
-            Manage single-owner identity, profile picture, workspace settings, and system integrations.
+            Manage single-owner identity, profile picture, workspace settings, system integrations, and deleted forms recycle bin.
           </p>
         </div>
 
         {/* Settings Navigation Tabs */}
-        <div className="flex items-center gap-2 border-b border-[#2A3647]/70 pb-3">
+        <div className="flex items-center gap-2 border-b border-[#2A3647]/70 pb-3 flex-wrap">
           <button
             type="button"
             onClick={() => setActiveTab('profile')}
@@ -426,6 +477,24 @@ export const SettingsView: React.FC = () => {
           >
             <Database className="w-4 h-4 text-[#38BDF8]" />
             <span>Integrations &amp; Automations</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('trash')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'trash'
+                ? 'bg-rose-500/20 text-white border border-rose-500/50 shadow-xs'
+                : 'bg-[#121820] hover:bg-[#1A2332] text-slate-400 hover:text-slate-200 border border-[#2A3647]'
+            }`}
+          >
+            <Trash2 className="w-4 h-4 text-rose-400" />
+            <span>Recycle Bin</span>
+            {trashForms.length > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-rose-500/25 text-rose-300 border border-rose-500/40">
+                {trashForms.length}
+              </span>
+            )}
           </button>
         </div>
 
@@ -642,6 +711,177 @@ export const SettingsView: React.FC = () => {
               type={selectedIntegration}
               onClose={() => setSelectedIntegration(null)}
             />
+          </div>
+        )}
+
+        {/* TAB 3: RECYCLE BIN / TRASH */}
+        {activeTab === 'trash' && (
+          <div className="space-y-6 animate-fadeIn">
+            <div className="p-6 rounded-2xl bg-[#121820] border border-[#2A3647] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <h3 className="text-base font-bold font-heading text-white flex items-center gap-2">
+                  <Trash2 className="w-5 h-5 text-rose-400" /> Forms Recycle Bin
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Deleted forms are safely stored here. You can restore them back to your workspace or permanently purge them.
+                </p>
+              </div>
+
+              {trashForms.length > 0 && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => bulkRestoreForms(trashForms.map(f => f.id))}
+                    className="px-3.5 py-1.5 rounded-xl bg-[#1A2332] hover:bg-[#222C3D] border border-emerald-500/40 text-emerald-300 hover:text-emerald-200 text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <ArchiveRestore className="w-3.5 h-3.5" />
+                    <span>Restore All ({trashForms.length})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsConfirmEmptyTrashOpen(true)}
+                    className="px-3.5 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/40 text-rose-300 hover:text-rose-200 text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Empty Recycle Bin</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Trash Multi-Select Bar */}
+            {trashForms.length > 0 && (
+              <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[#161D27] border border-[#2A3647] flex-wrap">
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleToggleSelectAllTrash}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-slate-300 hover:text-white cursor-pointer"
+                  >
+                    {selectedTrashIds.size === trashForms.length && trashForms.length > 0 ? (
+                      <CheckSquare className="w-4 h-4 text-[#38BDF8]" />
+                    ) : (
+                      <Square className="w-4 h-4 text-slate-400" />
+                    )}
+                    <span>
+                      {selectedTrashIds.size === trashForms.length && trashForms.length > 0
+                        ? 'Deselect All'
+                        : `Select All (${trashForms.length})`}
+                    </span>
+                  </button>
+
+                  {selectedTrashIds.size > 0 && (
+                    <span className="text-xs font-mono text-cyan-300">
+                      • {selectedTrashIds.size} selected
+                    </span>
+                  )}
+                </div>
+
+                {selectedTrashIds.size > 0 && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleBulkRestoreSelected}
+                      className="px-3 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Restore Selected ({selectedTrashIds.size})</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsConfirmBulkPermanentOpen(true)}
+                      className="px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Permanently Delete ({selectedTrashIds.size})</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Trash List */}
+            {trashForms.length === 0 ? (
+              <div className="p-12 text-center bg-[#121820] rounded-2xl border border-[#2A3647] space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-[#1A2332] text-slate-500 flex items-center justify-center mx-auto border border-[#2A3647]">
+                  <Trash2 className="w-6 h-6" />
+                </div>
+                <h4 className="text-sm font-bold text-white">Recycle Bin is Empty</h4>
+                <p className="text-slate-400 text-xs max-w-sm mx-auto">
+                  When you delete forms from your workspace, they will appear here so you can safely restore or permanently purge them.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {trashForms.map((form) => {
+                  const isSelected = selectedTrashIds.has(form.id);
+                  return (
+                    <div
+                      key={form.id}
+                      className={`p-4 rounded-2xl bg-[#121820] border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                        isSelected ? 'border-[#38BDF8] ring-1 ring-[#38BDF8]/40 bg-[#16202E]' : 'border-[#2A3647] hover:border-slate-600'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleSelectTrash(form.id)}
+                          className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 mt-0.5 transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-[#2563EB] border-[#38BDF8] text-white shadow-sm'
+                              : 'bg-[#1A2332] border-[#475569] hover:border-[#38BDF8]'
+                          }`}
+                        >
+                          <Check className={`w-3.5 h-3.5 ${isSelected ? 'opacity-100 stroke-[3]' : 'opacity-0'}`} />
+                        </button>
+
+                        <div className="space-y-1 flex-1 min-w-0">
+                          <h4 className="text-sm font-bold text-white truncate">{form.title}</h4>
+                          <div className="flex items-center gap-3 text-xs font-mono text-slate-400 flex-wrap">
+                            <span>{form.questions?.length || 0} questions</span>
+                            <span>•</span>
+                            <span>{form.responseCount || 0} responses</span>
+                            {form.deletedAt && (
+                              <>
+                                <span>•</span>
+                                <span className="flex items-center gap-1 text-slate-500">
+                                  <Clock className="w-3 h-3 text-rose-400" />
+                                  <span>Deleted {formatDistanceToNow(new Date(form.deletedAt), { addSuffix: true })}</span>
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                        <button
+                          type="button"
+                          onClick={() => restoreForm(form.id)}
+                          className="px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/35 text-emerald-300 hover:text-emerald-200 text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+                          title="Restore form to active workspace"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>Restore</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setConfirmPermanentDeleteId(form.id)}
+                          className="px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/35 text-rose-300 hover:text-rose-200 text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+                          title="Permanently wipe from database"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Delete Forever</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -939,6 +1179,135 @@ export const SettingsView: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: CONFIRM SINGLE PERMANENT DELETE */}
+      {confirmPermanentDeleteId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+          <div className="w-full max-w-md bg-[#121820] border border-rose-500/50 rounded-2xl p-6 space-y-5 shadow-2xl text-slate-100">
+            <div className="flex items-center gap-3 border-b border-[#2A3647] pb-4">
+              <div className="p-2.5 rounded-xl bg-rose-500/15 text-rose-400 border border-rose-500/30">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold font-heading text-white">Permanently Delete Form?</h3>
+                <p className="text-xs text-slate-400">This action cannot be undone.</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Are you sure you want to permanently purge{' '}
+              <strong className="text-white">
+                "{trashForms.find(f => f.id === confirmPermanentDeleteId)?.title || 'this form'}"
+              </strong>? All associated response data will be wiped from storage.
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#2A3647]">
+              <button
+                type="button"
+                onClick={() => setConfirmPermanentDeleteId(null)}
+                className="px-4 py-2 rounded-xl bg-[#1A2332] hover:bg-[#222C3D] border border-[#2A3647] text-slate-300 text-xs font-semibold transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  permanentlyDeleteForm(confirmPermanentDeleteId);
+                  setConfirmPermanentDeleteId(null);
+                }}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete Permanently</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 5: CONFIRM BULK PERMANENT DELETE */}
+      {isConfirmBulkPermanentOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+          <div className="w-full max-w-md bg-[#121820] border border-rose-500/50 rounded-2xl p-6 space-y-5 shadow-2xl text-slate-100">
+            <div className="flex items-center gap-3 border-b border-[#2A3647] pb-4">
+              <div className="p-2.5 rounded-xl bg-rose-500/15 text-rose-400 border border-rose-500/30">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold font-heading text-white">
+                  Permanently Delete {selectedTrashIds.size} Forms?
+                </h3>
+                <p className="text-xs text-slate-400">All questions, answers, and data will be permanently wiped.</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              These <strong className="text-white">{selectedTrashIds.size} selected forms</strong> will be completely removed from your account. This action cannot be recovered.
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#2A3647]">
+              <button
+                type="button"
+                onClick={() => setIsConfirmBulkPermanentOpen(false)}
+                className="px-4 py-2 rounded-xl bg-[#1A2332] hover:bg-[#222C3D] border border-[#2A3647] text-slate-300 text-xs font-semibold transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmBulkPermanentDelete}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete {selectedTrashIds.size} Forms Forever</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 6: CONFIRM EMPTY RECYCLE BIN */}
+      {isConfirmEmptyTrashOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+          <div className="w-full max-w-md bg-[#121820] border border-rose-500/50 rounded-2xl p-6 space-y-5 shadow-2xl text-slate-100">
+            <div className="flex items-center gap-3 border-b border-[#2A3647] pb-4">
+              <div className="p-2.5 rounded-xl bg-rose-500/15 text-rose-400 border border-rose-500/30">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold font-heading text-white">Empty Entire Recycle Bin?</h3>
+                <p className="text-xs text-slate-400">Permanently delete all {trashForms.length} forms in trash.</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              This will permanently delete all <strong className="text-white">{trashForms.length} forms</strong> currently in your Recycle Bin.
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#2A3647]">
+              <button
+                type="button"
+                onClick={() => setIsConfirmEmptyTrashOpen(false)}
+                className="px-4 py-2 rounded-xl bg-[#1A2332] hover:bg-[#222C3D] border border-[#2A3647] text-slate-300 text-xs font-semibold transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  emptyTrash();
+                  setSelectedTrashIds(new Set());
+                  setIsConfirmEmptyTrashOpen(false);
+                }}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Empty Recycle Bin</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
