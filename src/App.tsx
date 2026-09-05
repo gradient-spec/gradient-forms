@@ -82,11 +82,9 @@ const MainLayout: React.FC = () => {
       forms[0];
 
     return (
-      <div className="min-h-screen bg-[#07070E] py-12 px-4 relative">
-        <AmbientBackground />
-        <div className="relative z-10">
-          <PublishedFormView form={currentPublishedForm} />
-        </div>
+      <div className="min-h-screen bg-[#060A13]">
+        <PublishedFormView form={currentPublishedForm} />
+        <ToastContainer />
       </div>
     );
   }
