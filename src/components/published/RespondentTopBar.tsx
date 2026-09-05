@@ -15,11 +15,11 @@ export const RespondentTopBar: React.FC<RespondentTopBarProps> = ({
       {/* Brand Identity */}
       <div className="flex items-center gap-2.5">
         <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center relative group">
-          <div className="absolute inset-0 bg-[#2563EB]/30 rounded-lg blur-sm pointer-events-none" />
+          <div className="absolute inset-0 bg-[#9333EA]/25 rounded-lg blur-sm pointer-events-none" />
           <img
-            src="/favicon.svg"
+            src="/logo-transparent.png"
             alt="Gradient Forms"
-            className="w-full h-full object-contain relative z-10 filter drop-shadow-[0_2px_8px_rgba(56,189,248,0.4)]"
+            className="w-full h-full object-contain relative z-10 filter drop-shadow-[0_2px_8px_rgba(147,51,234,0.4)]"
           />
         </div>
         <span className="font-heading font-bold text-sm sm:text-base tracking-wide text-white flex items-center gap-1.5">
